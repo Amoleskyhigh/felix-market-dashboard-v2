@@ -1,1 +1,118 @@
-ICAgIGNvbnN0IEFJX01FQU4gPSAzNS41NSwgQUlfU0QgPSA0LjI3OwogICAgY29uc3QgUEVfV0FSTjEgPSBBSV9NRUFOICsgQUlfU0Q7ICAgLy8gMzkuODIKICAgIGNvbnN0IFBFX1dBUk4yID0gQUlfTUVBTiArIDIqQUlfU0Q7IC8vIDQ0LjA5CiAgICBjb25zdCBQRV9TQ09SRV9UMSA9IDM2LCBQRV9TQ09SRV9UMiA9IDM5LjMzOwoKICAgIGxldCBnRGF0YSA9IG51bGw7CiAgICBsZXQgY2hhcnRzRHJhd24gPSBbXTsKCiAgICAvLyDilIDilIDilIAgVXRpbGl0eSDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKICAgIGZ1bmN0aW9uIGNhbGNNQShjbG9zZXMsIHBlcmlvZCkgewogICAgICAgIGlmICghY2xvc2VzIHx8IGNsb3Nlcy5sZW5ndGggPCBwZXJpb2QpIHJldHVybiBjbG9zZXMgPyBjbG9zZXNbY2xvc2VzLmxlbmd0aC0xXSA6IG51bGw7CiAgICAgICAgcmV0dXJuIGNsb3Nlcy5zbGljZSgtcGVyaW9kKS5yZWR1Y2UoKGEsYikgPT4gYStiLCAwKSAvIHBlcmlvZDsKICAgIH0KICAgIGZ1bmN0aW9uIGNhbGNNQV9mdWxsKGNsb3NlcywgcGVyaW9kKSB7CiAgICAgICAgLy8gUmV0dXJucyBmdWxsIGFycmF5IG9mIE1BcyAoc2FtZSBsZW5ndGggYXMgY2xvc2VzLCBudWxsIGZvciBlYXJseSBlbnRyaWVzKQogICAgICAgIHJldHVybiBjbG9zZXMubWFwKChfLCBpKSA9PiBpIDwgcGVyaW9kLTEgPyBudWxsIDogY2xvc2VzLnNsaWNlKGktcGVyaW9kKzEsIGkrMSkucmVkdWNlKChhLGIpPT5hK2IsMCkvcGVyaW9kKTsKICAgIH0KICAgIGZ1bmN0aW9uIHBjdCh2YWwsIHJlZikgeyByZXR1cm4gKCh2YWwgLSByZWYpIC8gcmVmICogMTAwKTsgfQogICAgZnVuY3Rpb24gY29sb3JQY3QodikgeyByZXR1cm4gdiA+PSAwID8gYDxzcGFuIGNsYXNzPSJ1cCI+KyR7di50b0ZpeGVkKDIpfSU8L3NwYW4+YCA6IGA8c3BhbiBjbGFzcz0iZG93biI+JHt2LnRvRml4ZWQoMil9JTwvc3Bhbj5gOyB9CgogICAgLy8g4pSA4pSA4pSAIFNjb3Jpbmcg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACiAgICBmdW5jdGlvbiBjb21wdXRlU2NvcmUoKSB7CiAgICAgICAgY29uc3QgZCA9IGdEYXRhOwogICAgICAgIGNvbnN0IHZpeCA9IGQudml4Py5jdXJyZW50UHJpY2UgPz8gMjA7CiAgICAgICAgY29uc3QgZmcgID0gZC5mZWFyR3JlZWQ/LnNjb3JlID8/IDUwOwogICAgICAgIGNvbnN0IGNvcHBlciA9IGQuY29wcGVyPy5jdXJyZW50UHJpY2UgPz8gNC41OwogICAgICAgIGNvbnN0IGNvcHBlck1BMyA9IGNhbGNNQShkLmNvcHBlcj8uY2xvc2VzLCAzKSA/PyBjb3BwZXI7CiAgICAgICAgY29uc3QgdG54ID0gZC50bng/LmN1cnJlbnRQcmljZSA/PyA0LjM7CiAgICAgICAgY29uc3QgdG54TUEyMCA9IGNhbGNNQShkLnRueD8uY2xvc2VzLCAyMCkgPz8gdG54OwogICAgICAgIGNvbnN0IHBlICA9IGQuc2hpbGxlcj8uY3VycmVudCA/PyAzNTsKICAgICAgICBjb25zdCBkeHkgPSBkLmR4eT8uY3VycmVudFByaWNlID8/IDEwMDsKICAgICAgICBjb25zdCBkeHlNQTIwID0gY2FsY01BKGQuZHh5Py5jbG9zZXMsIDIwKSA/PyBkeHk7CgogICAgICAgIC8vIFNQWSB2cyBNQTIwMAogICAgICAgIGNvbnN0IHNweUNsb3NlcyA9IGQuc3B5Py5jbG9zZXMgPz8gZC5zcHg/LmNsb3NlcyA/PyBbXTsKICAgICAgICBjb25zdCBzcHkgPSBkLnNweT8uY3VycmVudFByaWNlID8/IGQuc3B4Py5jdXJyZW50UHJpY2UgPz8gNTAwOwogICAgICAgIGNvbnN0IHNweU1BMjAwID0gY2FsY01BKHNweUNsb3NlcywgMjAwKSA/PyBzcHk7CiAgICAgICAgY29uc3Qgc3B5UGN0ID0gcGN0KHNweSwgc3B5TUEyMDApOwoKICAgICAgICAvLyBTY29yZXMKICAgICAgICBjb25zdCB2aXhSYXcgPSB2aXggPiAzNSA/IDMgOiB2aXggPiAyOCA/IDIgOiB2aXggPiAyMCA/IDEgOiAwOwogICAgICAgIGNvbnN0IGZnUmF3ICA9IGZnIDwgMjUgPyAyIDogZmcgPCA0MCA/IDEgOiAwOwogICAgICAgIGNvbnN0IGNvcHBlclJhdyA9IGNvcHBlciA+IGNvcHBlck1BMyA/IDEgOiAwOwogICAgICAgIGNvbnN0IHRueFJhdyA9IHRueCA8IHRueE1BMjAgPyAxIDogMDsKICAgICAgICBjb25zdCBwZVJhdyAgPSBwZSA8IFBFX1NDT1JFX1QxID8gMiA6IHBlIDwgUEVfU0NPUkVfVDIgPyAxIDogMDsKICAgICAgICBjb25zdCBkeHlSYXcgPSBkeHkgPCBkeHlNQTIwID8gMSA6IDA7CgogICAgICAgIGNvbnN0IHJhd1Njb3JlID0gKHZpeFJhdyozKSArIChmZ1JhdyoyKSArIChjb3BwZXJSYXcqMikgKyAodG54UmF3KjIpICsgKHBlUmF3KjIpICsgKGR4eVJhdyoxKTsKCiAgICAgICAgLy8gSyBjb2VmZmljaWVudAogICAgICAgIGxldCBrOwogICAgICAgIGlmIChzcHlQY3QgPj0gMCkgayA9IDEuMDsKICAgICAgICBlbHNlIGlmIChzcHlQY3QgPj0gLTUpIGsgPSAwLjg7CiAgICAgICAgZWxzZSBpZiAoc3B5UGN0ID49IC0xNSkgayA9IDAuNjsKICAgICAgICBlbHNlIGsgPSAwLjU7CgogICAgICAgIGNvbnN0IGZpbmFsU2NvcmUgPSBwYXJzZUZsb2F0KChyYXdTY29yZSAqIGspLnRvRml4ZWQoMikpOwoKICAgICAgICByZXR1cm4gewogICAgICAgICAgICB2aXgsIHZpeFJhdywgdml4TUE6IG51bGwsCiAgICAgICAgICAgIGZnLCBmZ1JhdywKICAgICAgICAgICAgY29wcGVyLCBjb3BwZXJNQTMsIGNvcHBlclJhdywKICAgICAgICAgICAgdG54LCB0bnhNQTIwLCB0bnhSYXcsCiAgICAgICAgICAgIHBlLCBwZVJhdywKICAgICAgICAgICAgZHh5LCBkeHlNQTIwLCBkeHlSYXcsCiAgICAgICAgICAgIHJhd1Njb3JlLCBrLCBmaW5hbFNjb3JlLCBzcHlQY3QsIHNweSwgc3B5TUEyMDAKICAgICAgICB9OwogICAgfQoKICAgIGZ1bmN0aW9uIGdldEFsbG9jYXRpb24oZmluYWxTY29yZSwgcGUpIHsKICAgICAgICBsZXQgY2FzaFBjdCwgcXFxUGN0LCBzbWhQY3QsIGJveHhQY3QsIHFsZFBjdDsKCiAgICAgICAgaWYgKGZpbmFsU2NvcmUgPD0gMykgewogICAgICAgICAgICBjYXNoUGN0PTM1OyBxcXFQY3Q9MzU7IHNtaFBjdD0yNTsgYm94eFBjdD01OyBxbGRQY3Q9MDsKICAgICAgICB9IGVsc2UgaWYgKGZpbmFsU2NvcmUgPD0gNikgewogICAgICAgICAgICBjYXNoUGN0PTIwOyBxcXFQY3Q9MzA7IHNtaFBjdD00MDsgYm94eFBjdD0xMDsgcWxkUGN0PTA7CiAgICAgICAgfSBlbHNlIGlmIChmaW5hbFNjb3JlIDw9IDkpIHsKICAgICAgICAgICAgY2FzaFBjdD0xMDsgcXFxUGN0PTQwOyBzbWhQY3Q9NDA7IGJveHhQY3Q9MTA7IHFsZFBjdD0wOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIGNhc2hQY3Q9NTsgcXFxUGN0PTM1OyBzbWhQY3Q9NTA7IGJveHhQY3Q9NTsgcWxkUGN0PTU7CiAgICAgICAgfQoKICAgICAgICBsZXQgcGVOb3RlID0gJyc7CiAgICAgICAgaWYgKHBlID49IFBFX1NDT1JFX1QyKSB7CiAgICAgICAgICAgIC8vID4zOS4zMzogZXh0cmEgKzIwJSBCT1hYICh0YWtlIGZyb20gUVFRIC0xMCUsIFNNSCAtMTAlKQogICAgICAgICAgICBxcXFQY3QgPSBNYXRoLm1heCgwLCBxcXFQY3QgLSAxMCk7CiAgICAgICAgICAgIHNtaFBjdCA9IE1hdGgubWF4KDAsIHNtaFBjdCAtIDEwKTsKICAgICAgICAgICAgYm94eFBjdCArPSAyMDsKICAgICAgICAgICAgcGVOb3RlID0gYOKaoO+4jyBTaGlsbGVyIFBFICR7cGUudG9GaXhlZCgyKX0gPiAzOS4zM++8iCsxz4PpgY7nhrHvvInvvJpCT1hYIOmhjeWkliArMjAlYDsKICAgICAgICB9IGVsc2UgaWYgKHBlID49IFBFX1NDT1JFX1QxKSB7CiAgICAgICAgICAgIC8vIDM2LTM5LjMzOiArMTAlIEJPWFgKICAgICAgICAgICAgcXFxUGN0ID0gTWF0aC5tYXgoMCwgcXFxUGN0IC0gNSk7CiAgICAgICAgICAgIHNtaFBjdCA9IE1hdGgubWF4KDAsIHNtaFBjdCAtIDUpOwogICAgICAgICAgICBib3h4UGN0ICs9IDEwOwogICAgICAgICAgICBwZU5vdGUgPSBg4pqg77iPIFNoaWxsZXIgUEUgJHtwZS50b0ZpeGVkKDIpfSDlnKggMzbigJMzOS4zM++8iOeVpemrmO+8ie+8mkJPWFggKzEwJWA7CiAgICAgICAgfQoKICAgICAgICAvLyBub3JtYWxpemUKICAgICAgICBjb25zdCB0b3RhbCA9IGNhc2hQY3QgKyBxcXFQY3QgKyBzbWhQY3QgKyBib3h4UGN0ICsgcWxkUGN0OwogICAgICAgIGlmICh0b3RhbCAhPT0gMTAwKSB7CiAgICAgICAgICAgIGNvbnN0IGRpZmYgPSAxMDAgLSB0b3RhbDsKICAgICAgICAgICAgYm94eFBjdCA9IE1hdGgubWF4KDAsIGJveHhQY3QgKyBkaWZmKTsKICAgICAgICB9CgogICAgICAgIHJldHVybiB7IGNhc2hQY3QsIHFxcVBjdCwgc21oUGN0LCBib3h4UGN0LCBxbGRQY3QsIHBlTm90ZSB9OwogICAgfQoKICAgIC8vIOKUgOKUgOKUgCBQYW5pYyB0cmlnZ2VyIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgAogICAgZnVuY3Rpb24gY2hlY2tQYW5pYygpIHsKICAgICAgICBjb25zdCBkID0gZ0RhdGE7CiAgICAgICAgY29uc3Qgdml4ID0gZC52aXg/LmN1cnJlbnRQcmljZSA/PyAyMDsKICAgICAgICBjb25zdCBmZyAgPSBkLmZlYXJHcmVlZD8uc2NvcmUgPz8gNTA7CiAgICAgICAgY29uc3Qgd2Vla2x5UmV0ID0gZC5zcHk/LndlZWtseVJldHVybiA/PyBkLnNweD8ud2Vla2x5UmV0dXJuID8/IDA7CgogICAgICAgIGNvbnN0IGMxID0gd2Vla2x5UmV0IDw9IC03OwogICAgICAgIGNvbnN0IGMyID0gdml4ID4gMzU7CiAgICAgICAgY29uc3QgYzMgPSBmZyA8IDIwOwogICAgICAgIGNvbnN0IHRyaWdnZXJlZCA9IGMxICYmIGMyICYmIGMzOwoKICAgICAgICByZXR1cm4geyB0cmlnZ2VyZWQsIHdlZWtseVJldCwgdml4LCBmZywgYzEsIGMyLCBjMyB9OwogICAgfQoKICAgIC8vIOKUgOKUgOKUgCBSZW5kZXIg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACg==
+    const AI_MEAN = 35.55, AI_SD = 4.27;
+    const PE_WARN1 = AI_MEAN + AI_SD;   // 39.82
+    const PE_WARN2 = AI_MEAN + 2*AI_SD; // 44.09
+    const PE_SCORE_T1 = 36, PE_SCORE_T2 = 39.33;
+
+    let gData = null;
+    let chartsDrawn = [];
+
+    // ─── Utility ──────────────────────────────────────────────────────────
+    function calcMA(closes, period) {
+        if (!closes || closes.length < period) return closes ? closes[closes.length-1] : null;
+        return closes.slice(-period).reduce((a,b) => a+b, 0) / period;
+    }
+    function calcMA_full(closes, period) {
+        // Returns full array of MAs (same length as closes, null for early entries)
+        return closes.map((_, i) => i < period-1 ? null : closes.slice(i-period+1, i+1).reduce((a,b)=>a+b,0)/period);
+    }
+    function pct(val, ref) { return ((val - ref) / ref * 100); }
+    function colorPct(v) { return v >= 0 ? `<span class="up">+${v.toFixed(2)}%</span>` : `<span class="down">${v.toFixed(2)}%</span>`; }
+
+    // ─── Scoring ───────────────────────────────────────────────────────────
+    function computeScore() {
+        const d = gData;
+        const vix = d.vix?.currentPrice ?? 20;
+        const fg  = d.fearGreed?.score ?? 50;
+        const copper = d.copper?.currentPrice ?? 4.5;
+        const copperMA3 = calcMA(d.copper?.closes, 3) ?? copper;
+        const tnx = d.tnx?.currentPrice ?? 4.3;
+        const tnxMA20 = calcMA(d.tnx?.closes, 20) ?? tnx;
+        const pe  = d.shiller?.current ?? 35;
+        const dxy = d.dxy?.currentPrice ?? 100;
+        const dxyMA20 = calcMA(d.dxy?.closes, 20) ?? dxy;
+
+        // SPY vs MA200
+        const spyCloses = d.spy?.closes ?? d.spx?.closes ?? [];
+        const spy = d.spy?.currentPrice ?? d.spx?.currentPrice ?? 500;
+        const spyMA200 = calcMA(spyCloses, 200) ?? spy;
+        const spyPct = pct(spy, spyMA200);
+
+        // Scores
+        const vixRaw = vix > 35 ? 3 : vix > 28 ? 2 : vix > 20 ? 1 : 0;
+        const fgRaw  = fg < 25 ? 2 : fg < 40 ? 1 : 0;
+        const copperRaw = copper > copperMA3 ? 1 : 0;
+        const tnxRaw = tnx < tnxMA20 ? 1 : 0;
+        const peRaw  = pe < PE_SCORE_T1 ? 2 : pe < PE_SCORE_T2 ? 1 : 0;
+        const dxyRaw = dxy < dxyMA20 ? 1 : 0;
+
+        const rawScore = (vixRaw*3) + (fgRaw*2) + (copperRaw*2) + (tnxRaw*2) + (peRaw*2) + (dxyRaw*1);
+
+        // K coefficient
+        let k;
+        if (spyPct >= 0) k = 1.0;
+        else if (spyPct >= -5) k = 0.8;
+        else if (spyPct >= -15) k = 0.6;
+        else k = 0.5;
+
+        const finalScore = parseFloat((rawScore * k).toFixed(2));
+
+        return {
+            vix, vixRaw, vixMA: null,
+            fg, fgRaw,
+            copper, copperMA3, copperRaw,
+            tnx, tnxMA20, tnxRaw,
+            pe, peRaw,
+            dxy, dxyMA20, dxyRaw,
+            rawScore, k, finalScore, spyPct, spy, spyMA200
+        };
+    }
+
+    function getAllocation(finalScore, pe) {
+        let cashPct, qqqPct, smhPct, boxxPct, qldPct;
+
+        if (finalScore <= 3) {
+            cashPct=35; qqqPct=35; smhPct=25; boxxPct=5; qldPct=0;
+        } else if (finalScore <= 6) {
+            cashPct=20; qqqPct=30; smhPct=40; boxxPct=10; qldPct=0;
+        } else if (finalScore <= 9) {
+            cashPct=10; qqqPct=40; smhPct=40; boxxPct=10; qldPct=0;
+        } else {
+            cashPct=5; qqqPct=35; smhPct=50; boxxPct=5; qldPct=5;
+        }
+
+        let peNote = '';
+        if (pe >= PE_SCORE_T2) {
+            qqqPct = Math.max(0, qqqPct - 10);
+            smhPct = Math.max(0, smhPct - 10);
+            boxxPct += 20;
+            peNote = `⚠️ Shiller PE ${pe.toFixed(2)} > 39.33（+1σ過熱）：BOXX 額外 +20%`;
+        } else if (pe >= PE_SCORE_T1) {
+            qqqPct = Math.max(0, qqqPct - 5);
+            smhPct = Math.max(0, smhPct - 5);
+            boxxPct += 10;
+            peNote = `⚠️ Shiller PE ${pe.toFixed(2)} 在 36–39.33（略高）：BOXX +10%`;
+        }
+
+        const total = cashPct + qqqPct + smhPct + boxxPct + qldPct;
+        if (total !== 100) {
+            const diff = 100 - total;
+            boxxPct = Math.max(0, boxxPct + diff);
+        }
+
+        return { cashPct, qqqPct, smhPct, boxxPct, qldPct, peNote };
+    }
+
+    // ─── Panic trigger ───────────────────────────────────────────────────
+    function checkPanic() {
+        const d = gData;
+        const vix = d.vix?.currentPrice ?? 20;
+        const fg  = d.fearGreed?.score ?? 50;
+        const weeklyRet = d.spy?.weeklyReturn ?? d.spx?.weeklyReturn ?? 0;
+
+        const c1 = weeklyRet <= -7;
+        const c2 = vix > 35;
+        const c3 = fg < 20;
+        const triggered = c1 && c2 && c3;
+
+        return { triggered, weeklyRet, vix, fg, c1, c2, c3 };
+    }
