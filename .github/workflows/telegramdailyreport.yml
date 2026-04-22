@@ -1,0 +1,78 @@
+name: Telegram Daily Report Notification
+
+on:
+  push:
+    branches: [main]
+    paths: ['daily-reports/SP500_*.md']
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Send Telegram notification
+        run: |
+          python3 << 'EOF'
+          import os, glob, re, urllib.request, urllib.parse, json
+
+          files = sorted(glob.glob('daily-reports/SP500_*.md'))
+          if not files:
+              print("No report file found, skipping")
+              exit(0)
+
+          report_file = files[-1]
+          date_match = re.search(r'(\d{4}-\d{2}-\d{2})', report_file)
+          date = date_match.group(1) if date_match else 'unknown'
+
+          with open(report_file, 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          github_url = f"https://github.com/Amoleskyhigh/felix-market-dashboard-v2/blob/main/{report_file}"
+
+          def find(pattern, text, default=''):
+              m = re.search(pattern, text, re.MULTILINE | re.DOTALL)
+              return m.group(1).strip() if m else default
+
+          score = find(r'最終得分[：:]\s*([^\n]+)', content)
+          alloc_rows = re.findall(r'\|\s*(現金|QQQ|SMH|BOXX|QLD)\s*\|\s*(\d+%)\s*\|', content)
+          alloc_str = '  '.join([f"{r[0]} {r[1]}" for r in alloc_rows]) if alloc_rows else ''
+          mtd = find(r'本月\s*MTD[^：:]*[：:]([^\n]+)', content)
+          advice = find(r'操作建議[^：:]*[：:]\s*\n+([^\n#]{20,300})', content)
+
+          lines = [f"S&P 500 日報 {date}"]
+          if score:
+              lines.append(f"得分 {score}")
+          if alloc_str:
+              lines.append(f"配置 {alloc_str}")
+          if mtd:
+              lines.append(f"MTD {mtd}")
+          if advice:
+              lines.append(f"{advice[:200]}")
+          lines.append(f"完整報告 {github_url}")
+
+          msg = '\n\n'.join(lines)
+
+          token = os.environ['TELEGRAM_BOT_TOKEN']
+          chat_id = os.environ['TELEGRAM_CHAT_ID']
+
+          def send(text):
+              data = urllib.parse.urlencode({'chat_id': chat_id, 'text': text}).encode()
+              req = urllib.request.Request(
+                  f'https://api.telegram.org/bot{token}/sendMessage',
+                  data=data, method='POST')
+              with urllib.request.urlopen(req, timeout=15) as resp:
+                  return json.loads(resp.read())
+
+          result = send(msg)
+          if result.get('ok'):
+              print(f"Telegram sent OK. Message ID: {result['result']['message_id']}")
+          else:
+              print(f"Failed: {result}")
+              exit(1)
+          EOF
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
