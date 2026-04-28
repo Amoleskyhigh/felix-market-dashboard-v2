@@ -17,13 +17,15 @@
     }
     function pct(val, ref) { return ((val - ref) / ref * 100); }
     function colorPct(v) { return v >= 0 ? `<span class="up">+${v.toFixed(2)}%</span>` : `<span class="down">${v.toFixed(2)}%</span>`; }
+    // Normalize HY OAS: FRED returns %, scoring/display expects bp (e.g. 2.86 → 286)
+    function normHyOAS(v) { return v !== null && v < 10 ? Math.round(v * 100) : v; }
 
     // ─── Dual-Axis Scoring ────────────────────────────────────────────────
     function computeScore() {
         const d = gData;
         const vix      = d.vix?.currentPrice ?? 20;
         const fg       = d.fearGreed?.score ?? 50;
-        const hyOAS    = d.hyOAS?.current ?? null;
+        const hyOAS    = normHyOAS(d.hyOAS?.current ?? null);
         const breadth  = d.breadth?.pct ?? null;
         const copper   = d.copper?.currentPrice ?? 4.5;
         const copperMA3 = calcMA(d.copper?.closes, 3) ?? copper;
@@ -117,7 +119,7 @@
         const vix       = d.vix?.currentPrice ?? 20;
         const fg        = d.fearGreed?.score ?? 50;
         const weeklyRet = d.spy?.weeklyReturn ?? d.spx?.weeklyReturn ?? 0;
-        const hyOAS     = d.hyOAS?.current ?? null;
+        const hyOAS     = normHyOAS(d.hyOAS?.current ?? null);
 
         const c1 = weeklyRet <= -7;
         const c2 = vix > 35;
