@@ -64,11 +64,11 @@
             document.getElementById('s-fg').className = 'kpi-status ' + (fg < 40 ? 'up' : fg < 75 ? 'neutral' : 'down');
         }
 
-        // HY OAS (High Yield Spread)
+        // HY OAS (High Yield Spread) — normHyOAS converts % to bp if needed
         const hyEl = document.getElementById('v-hyoas');
         const hySt = document.getElementById('s-hyoas');
         if (d.hyOAS && d.hyOAS.current) {
-            const hy = d.hyOAS.current;
+            const hy = normHyOAS(d.hyOAS.current);
             hyEl.innerText = hy.toFixed(0) + 'bp';
             const s = hy > 600 ? '🟢 極度恐慌 (+3)' : hy > 500 ? '🟢 緊張 (+2)' : hy > 400 ? '🟡 偏寬 (+1)' : hy > 300 ? '⚪ 正常 (0)' : '🔴 過度樂觀 (-1)';
             hySt.innerText = s;
