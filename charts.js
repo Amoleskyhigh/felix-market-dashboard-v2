@@ -14,7 +14,7 @@
         }
 
         // Shiller PE
-        if (d.shiller) {
+        if (d.shiller && d.shiller.history && d.shiller.history.length > 0) {
             const peData = { timestamps: d.shiller.history.map(h=>new Date(h.date).getTime()), closes: d.shiller.history.map(h=>h.value) };
             chartsDrawn.push(drawMulti('chart-pe', peData.timestamps, [
                 { label:'Shiller PE', data: peData.closes, color:'#ff9800', width:1.5 },
@@ -33,7 +33,7 @@
         }
 
         // VIX
-        if (d.vix) {
+        if (d.vix && d.vix.closes && d.vix.closes.length > 1) {
             chartsDrawn.push(drawMulti('chart-vix', d.vix.timestamps, [
                 { label:'VIX', data: d.vix.closes, color:'#f44336', width:1.5 },
                 { label:'35', data: d.vix.closes.map(()=>35), color:'#ff5722', dash:[5,5], width:1 },
@@ -42,8 +42,21 @@
             ]));
         }
 
-        if (d.qqq) chartsDrawn.push(drawSingle('chart-qqq', d.qqq.timestamps, d.qqq.closes, '#4fc3f7', 'QQQ'));
-        if (d.smh) chartsDrawn.push(drawSingle('chart-smh', d.smh.timestamps, d.smh.closes, '#ce93d8', 'SMH'));
+        // HY OAS
+        if (d.hyOAS && d.hyOAS.history && d.hyOAS.history.length > 1) {
+            const hyTs = d.hyOAS.history.map(h => new Date(h.date).getTime());
+            const hyVals = d.hyOAS.history.map(h => h.value);
+            chartsDrawn.push(drawMulti('chart-hyoas', hyTs, [
+                { label:'HY OAS', data: hyVals, color:'#ef5350', width:1.5 },
+                { label:'500bp', data: hyVals.map(()=>500), color:'#ff9800', dash:[5,5], width:1 },
+                { label:'300bp', data: hyVals.map(()=>300), color:'#4caf50', dash:[3,3], width:1 },
+            ]));
+        }
+
+        if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1)
+            chartsDrawn.push(drawSingle('chart-qqq', d.qqq.timestamps, d.qqq.closes, '#4fc3f7', 'QQQ'));
+        if (d.smh && d.smh.closes && d.smh.closes.length > 1)
+            chartsDrawn.push(drawSingle('chart-smh', d.smh.timestamps, d.smh.closes, '#ce93d8', 'SMH'));
 
         // DXY with MA20
         if (d.dxy) {
@@ -126,7 +139,7 @@
             const panic = checkPanic();
 
             renderKPIs(sc);
-            renderScoreTable(sc);
+            renderDualAxis(sc);
             renderAlloc(sc);
             renderPanic(panic);
             renderCharts();
