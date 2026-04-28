@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Felix 股市研究儀表板 v2 - 宏觀量化配置版</title>
+    <title>Felix 股市研究儀表板 v3 - 雙軸量化配置版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
 <div class="dashboard">
-    <h1>📊 Felix 股市研究儀表板 <small style="font-size:12px;color:#888">v2 宏觀量化配置版</small></h1>
-    <p class="subtitle">6指標漸進評分 · K係數趨勢修正 · QQQ/SMH/BOXX/QLD 完整配置模型</p>
+    <h1>📊 Felix 股市研究儀表板 <small style="font-size:12px;color:#888">v3 雙軸量化配置版</small></h1>
+    <p class="subtitle">趨勢軸（動能 0–8）× 情緒軸（逆向 -3 至 +9）· HY OAS · 市場廣度 · Shiller PE 護欄</p>
     <div id="status-bar">⏳ 正在載入數據...</div>
 
     <!-- KPI Row 1: Market Prices -->
     <div class="kpi-row">
         <div class="kpi-card"><div class="kpi-label">Shiller PE</div><div id="v-pe" class="kpi-value">--</div><div id="s-pe" class="kpi-status">--</div></div>
         <div class="kpi-card highlight"><div class="kpi-label">SPY vs MA200</div><div id="v-spy-ma" class="kpi-value">--</div><div id="s-spy-ma" class="kpi-status">--</div></div>
-        <div class="kpi-card"><div class="kpi-label">S&P 500</div><div id="v-spx" class="kpi-value">--</div><div id="s-spx" class="kpi-status">--</div></div>
+        <div class="kpi-card"><div class="kpi-label">S&amp;P 500</div><div id="v-spx" class="kpi-value">--</div></div>
         <div class="kpi-card"><div class="kpi-label">NASDAQ</div><div id="v-ixic" class="kpi-value">--</div></div>
         <div class="kpi-card"><div class="kpi-label">PHLX SOX</div><div id="v-sox" class="kpi-value">--</div></div>
         <div class="kpi-card"><div class="kpi-label">QQQ</div><div id="v-qqq" class="kpi-value">--</div><div id="s-qqq" class="kpi-status">--</div></div>
@@ -30,7 +30,9 @@
     <!-- KPI Row 2: Macro Indicators -->
     <div class="kpi-row">
         <div class="kpi-card highlight"><div class="kpi-label">VIX</div><div id="v-vix" class="kpi-value">--</div><div id="s-vix" class="kpi-status">--</div></div>
-        <div class="kpi-card"><div class="kpi-label">Fear/Greed</div><div id="v-fg" class="kpi-value">--</div><div id="s-fg" class="kpi-status">--</div></div>
+        <div class="kpi-card"><div class="kpi-label">Fear / Greed</div><div id="v-fg" class="kpi-value">--</div><div id="s-fg" class="kpi-status">--</div></div>
+        <div class="kpi-card highlight"><div class="kpi-label">HY OAS (bp)</div><div id="v-hyoas" class="kpi-value">--</div><div id="s-hyoas" class="kpi-status">--</div></div>
+        <div class="kpi-card"><div class="kpi-label">市場廣度 (&gt;200MA)</div><div id="v-breadth" class="kpi-value">--</div><div id="s-breadth" class="kpi-status">--</div></div>
         <div class="kpi-card highlight"><div class="kpi-label">Copper (vs MA3)</div><div id="v-copper" class="kpi-value">--</div><div id="s-copper" class="kpi-status">--</div></div>
         <div class="kpi-card"><div class="kpi-label">10Y Yield (vs MA20)</div><div id="v-tnx" class="kpi-value">--</div><div id="s-tnx" class="kpi-status">--</div></div>
         <div class="kpi-card"><div class="kpi-label">DXY (vs MA20)</div><div id="v-dxy" class="kpi-value">--</div><div id="s-dxy" class="kpi-status">--</div></div>
@@ -39,19 +41,32 @@
 
     <!-- Score + Allocation -->
     <div class="score-panel">
-        <!-- LEFT: Score breakdown -->
+        <!-- LEFT: Dual-Axis Score -->
         <div class="card blue-border">
-            <h3>📐 宏觀評分框架（0–13分）</h3>
-            <table class="score-table">
-                <thead><tr><th>指標</th><th>今日值</th><th>條件</th><th>得分</th><th>×權重</th></tr></thead>
-                <tbody id="score-tbody"></tbody>
-                <tfoot>
-                    <tr style="font-weight:bold; color:#4fc3f7;">
-                        <td colspan="4">原始總分</td>
-                        <td id="raw-score-total">-- / 13</td>
-                    </tr>
-                </tfoot>
-            </table>
+            <h3>📐 雙軸評分框架</h3>
+            <div class="dual-axis-grid">
+                <!-- Trend Axis -->
+                <div class="axis-panel">
+                    <div class="axis-title trend-color">📈 趨勢軸（動能）</div>
+                    <div class="axis-score" id="trend-score-display">-- / 8</div>
+                    <div class="axis-sub" id="trend-raw-display">原始 --/8 × K-- = --</div>
+                    <table class="score-table" style="margin-top:8px">
+                        <thead><tr><th>指標</th><th>今日值</th><th>得分</th></tr></thead>
+                        <tbody id="trend-tbody"></tbody>
+                    </table>
+                </div>
+                <!-- Sentiment Axis -->
+                <div class="axis-panel">
+                    <div class="axis-title sentiment-color">😱 情緒軸（逆向）</div>
+                    <div class="axis-score" id="sentiment-score-display">-- / 9</div>
+                    <div class="axis-sub">高恐慌 = 加碼信號</div>
+                    <table class="score-table" style="margin-top:8px">
+                        <thead><tr><th>指標</th><th>今日值</th><th>得分</th></tr></thead>
+                        <tbody id="sentiment-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- K Factor -->
             <div class="k-panel">
                 <div>
                     <div class="k-label">K 係數（趨勢修正）</div>
@@ -64,12 +79,6 @@
                     <div class="k-desc" id="k-mode">--</div>
                 </div>
             </div>
-            <div class="final-score-display">
-                <div class="final-score-label">最終修正得分</div>
-                <div class="final-score-num" id="final-score">--</div>
-                <div class="final-score-label">（原始分 × K）</div>
-                <div style="margin-top:8px; font-size:12px; color:#888;">5日均分：<span id="avg5-score" style="color:#4fc3f7; font-weight:bold;">--</span>（本次為首日，以當日分代替）</div>
-            </div>
         </div>
 
         <!-- RIGHT: Allocation + Panic -->
@@ -79,14 +88,15 @@
                 <div class="fund-input-group">
                     每月新資金：<input type="number" id="fund-input" value="3000" oninput="updateAlloc()"> USD
                 </div>
-                <div id="alloc-mode" style="text-align:center; font-size:13px; color:#888; margin-bottom:8px;">--</div>
+                <div id="alloc-mode" style="text-align:center; font-size:12px; color:#888; margin-bottom:8px;">--</div>
                 <div id="alloc-bar-container"></div>
                 <div id="alloc-dollars-container"></div>
                 <div id="pe-adjustment-note" style="font-size:11px; color:#ff9800; margin-top:8px; text-align:center;"></div>
                 <div class="formula-box">
-                    <b>配置邏輯：</b>依最終修正得分（0–13）分四檔。<br>
-                    Shiller PE 36–39.33 → 額外 +10% BOXX；PE&gt;39.33 → +20% BOXX。<br>
-                    恐慌加倉觸發時：現金50%轉QQQ；VIX&gt;40可啟用QLD（上限5%資產）。
+                    <b>配置邏輯：</b>趨勢分 → 基礎股票比例；情緒分 → ±調整；Shiller PE → 硬上限<br>
+                    趨勢 ≤2→40%｜≤4→55%｜≤6→75%｜&gt;6→90%<br>
+                    情緒 ≥6→+15%｜≥3→+8%｜≥0→0%｜≥-2→-8%｜&lt;-2→-15%<br>
+                    PE&gt;39.33→上限55%；PE&gt;36→上限65%
                 </div>
             </div>
 
@@ -108,6 +118,7 @@
                 <div class="card"><h3>📉 Shiller PE（均值/σ）</h3><div class="chart-container"><canvas id="chart-pe"></canvas></div></div>
                 <div class="card"><h3>🏭 Copper 銅價走勢</h3><div class="chart-container"><canvas id="chart-copper"></canvas></div></div>
                 <div class="card"><h3>😱 VIX 走勢（含警戒線）</h3><div class="chart-container"><canvas id="chart-vix"></canvas></div></div>
+                <div class="card"><h3>💳 HY OAS 高收益利差</h3><div class="chart-container"><canvas id="chart-hyoas"></canvas></div></div>
                 <div class="card"><h3>📊 QQQ 走勢</h3><div class="chart-container"><canvas id="chart-qqq"></canvas></div></div>
                 <div class="card"><h3>💎 SMH 半導體走勢</h3><div class="chart-container"><canvas id="chart-smh"></canvas></div></div>
                 <div class="card"><h3>💵 DXY（vs MA20）</h3><div class="chart-container"><canvas id="chart-dxy"></canvas></div></div>
@@ -116,53 +127,33 @@
         </div>
 
         <div class="right-col">
-            <!-- Signal thresholds -->
+            <!-- Signal thresholds - Dual Axis -->
             <div class="card">
-                <h3>🚥 系統燈號定義</h3>
+                <h3>🚥 雙軸燈號定義</h3>
                 <div class="threshold-section">
-                    <div class="threshold-title">VIX（權重 ×3，漸進）</div>
+                    <div class="threshold-title trend-color">📈 趨勢軸（各 0/+2，乘以 K）</div>
                     <div class="threshold-row">
-                        🟢 &gt;35 → 3分（極度恐慌，買點）<br>
-                        🟡 28–35 → 2分（市場緊張）<br>
-                        🟡 20–28 → 1分（中性偏緊）<br>
-                        🔴 &lt;20 → 0分（過度樂觀）
+                        <b>Copper vs MA3</b>：高於 → +2<br>
+                        <b>10Y Yield vs MA20</b>：低於 → +2<br>
+                        <b>DXY vs MA20</b>：低於 → +2<br>
+                        <b>市場廣度</b>：&gt;70%→+2，&gt;50%→+1，else→0<br>
+                        <b>K 係數</b>：MA200以上=1.0，下0~5%=0.8，下5~15%=0.6，下15%+=0.5
                     </div>
                 </div>
                 <div class="threshold-section">
-                    <div class="threshold-title">Fear &amp; Greed（權重 ×2，漸進）</div>
+                    <div class="threshold-title sentiment-color">😱 情緒軸（逆向，每項 -1 至 +3）</div>
                     <div class="threshold-row">
-                        🟢 &lt;25 → 2分（極度恐慌）<br>
-                        🟡 25–40 → 1分（恐懼）<br>
-                        🔴 &gt;40 → 0分（中性以上）
+                        <b>VIX</b>：&gt;35→+3，&gt;28→+2，&gt;20→+1，&gt;15→0，≤15→-1<br>
+                        <b>Fear &amp; Greed</b>：&lt;20→+3，&lt;40→+2，&lt;60→+1，&lt;75→0，≥75→-1<br>
+                        <b>HY OAS</b>：&gt;600bp→+3，&gt;500→+2，&gt;400→+1，&gt;300→0，≤300→-1
                     </div>
                 </div>
                 <div class="threshold-section">
-                    <div class="threshold-title">Copper vs 3日均線（×2）</div>
+                    <div class="threshold-title" style="color:#ff9800">🛡️ Shiller PE 護欄</div>
                     <div class="threshold-row">
-                        🟢 高於 MA3 → 1分（經濟擴張）<br>
-                        🔴 低於 MA3 → 0分
-                    </div>
-                </div>
-                <div class="threshold-section">
-                    <div class="threshold-title">10Y Yield vs 20日均線（×2）</div>
-                    <div class="threshold-row">
-                        🟢 低於 MA20 → 1分（利率下行）<br>
-                        🔴 高於 MA20 → 0分
-                    </div>
-                </div>
-                <div class="threshold-section">
-                    <div class="threshold-title">Shiller PE（×2，漸進）</div>
-                    <div class="threshold-row">
-                        🟢 &lt;36 → 2分（正常買入）<br>
-                        🟡 36–39.33 → 1分（略高）<br>
-                        🔴 &gt;39.33 → 0分（過熱）
-                    </div>
-                </div>
-                <div class="threshold-section">
-                    <div class="threshold-title">DXY vs 20日均線（×1）</div>
-                    <div class="threshold-row">
-                        🟢 低於 MA20 → 1分（美元弱）<br>
-                        🔴 高於 MA20 → 0分
+                        PE &lt; 36 → 無上限<br>
+                        PE 36–39.33 → 股票上限 65%<br>
+                        PE &gt; 39.33 → 股票上限 55%
                     </div>
                 </div>
             </div>
@@ -196,7 +187,6 @@
         </div>
     </div>
 </div>
-
 
     <script src="scoring.js"></script>
     <script src="render.js"></script>
