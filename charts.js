@@ -1,3 +1,9 @@
+    // Normalize timestamps to ms (Alpha Vantage gives seconds, others ms)
+    function normalizeTs(ts) {
+        if (!ts || !ts.length) return ts;
+        return ts[0] < 1e12 ? ts.map(t => t * 1000) : ts;
+    }
+
     function renderCharts() {
         const d = gData;
         chartsDrawn.forEach(c => c.destroy());
@@ -7,7 +13,7 @@
         if (d.spy || d.spx) {
             const src = d.spy || d.spx;
             const ma200 = calcMA_full(src.closes, 200);
-            chartsDrawn.push(drawMulti('chart-spy', src.timestamps, [
+            chartsDrawn.push(drawMulti('chart-spy', normalizeTs(src.timestamps), [
                 { label:'SPY', data: src.closes, color:'#4fc3f7', width:1.5 },
                 { label:'MA200', data: ma200, color:'#f44336', dash:[4,4], width:1 }
             ]));
@@ -26,7 +32,7 @@
         // Copper
         if (d.copper) {
             const ma3 = calcMA_full(d.copper.closes, 3);
-            chartsDrawn.push(drawMulti('chart-copper', d.copper.timestamps, [
+            chartsDrawn.push(drawMulti('chart-copper', normalizeTs(d.copper.timestamps), [
                 { label:'Copper', data: d.copper.closes, color:'#cd7f32', width:1.5 },
                 { label:'MA3', data: ma3, color:'#ffeb3b', dash:[4,4], width:1 }
             ]));
@@ -34,7 +40,7 @@
 
         // VIX
         if (d.vix && d.vix.closes && d.vix.closes.length > 1) {
-            chartsDrawn.push(drawMulti('chart-vix', d.vix.timestamps, [
+            chartsDrawn.push(drawMulti('chart-vix', normalizeTs(d.vix.timestamps), [
                 { label:'VIX', data: d.vix.closes, color:'#f44336', width:1.5 },
                 { label:'35', data: d.vix.closes.map(()=>35), color:'#ff5722', dash:[5,5], width:1 },
                 { label:'28', data: d.vix.closes.map(()=>28), color:'#ff9800', dash:[3,3], width:1 },
@@ -42,10 +48,10 @@
             ]));
         }
 
-        // HY OAS
+        // HY OAS — normalize value from % to bp if needed (FRED gives %, chart expects bp)
         if (d.hyOAS && d.hyOAS.history && d.hyOAS.history.length > 1) {
             const hyTs = d.hyOAS.history.map(h => new Date(h.date).getTime());
-            const hyVals = d.hyOAS.history.map(h => h.value);
+            const hyVals = d.hyOAS.history.map(h => h.value < 10 ? h.value * 100 : h.value);
             chartsDrawn.push(drawMulti('chart-hyoas', hyTs, [
                 { label:'HY OAS', data: hyVals, color:'#ef5350', width:1.5 },
                 { label:'500bp', data: hyVals.map(()=>500), color:'#ff9800', dash:[5,5], width:1 },
@@ -54,14 +60,14 @@
         }
 
         if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1)
-            chartsDrawn.push(drawSingle('chart-qqq', d.qqq.timestamps, d.qqq.closes, '#4fc3f7', 'QQQ'));
+            chartsDrawn.push(drawSingle('chart-qqq', normalizeTs(d.qqq.timestamps), d.qqq.closes, '#4fc3f7', 'QQQ'));
         if (d.smh && d.smh.closes && d.smh.closes.length > 1)
-            chartsDrawn.push(drawSingle('chart-smh', d.smh.timestamps, d.smh.closes, '#ce93d8', 'SMH'));
+            chartsDrawn.push(drawSingle('chart-smh', normalizeTs(d.smh.timestamps), d.smh.closes, '#ce93d8', 'SMH'));
 
         // DXY with MA20
         if (d.dxy) {
             const ma20 = calcMA_full(d.dxy.closes, 20);
-            chartsDrawn.push(drawMulti('chart-dxy', d.dxy.timestamps, [
+            chartsDrawn.push(drawMulti('chart-dxy', normalizeTs(d.dxy.timestamps), [
                 { label:'DXY', data: d.dxy.closes, color:'#81c784', width:1.5 },
                 { label:'MA20', data: ma20, color:'#ffeb3b', dash:[4,4], width:1 }
             ]));
@@ -70,7 +76,7 @@
         // TNX with MA20
         if (d.tnx) {
             const ma20 = calcMA_full(d.tnx.closes, 20);
-            chartsDrawn.push(drawMulti('chart-tnx', d.tnx.timestamps, [
+            chartsDrawn.push(drawMulti('chart-tnx', normalizeTs(d.tnx.timestamps), [
                 { label:'10Y Yield', data: d.tnx.closes, color:'#ffd54f', width:1.5 },
                 { label:'MA20', data: ma20, color:'#4fc3f7', dash:[4,4], width:1 },
                 { label:'4.5%', data: d.tnx.closes.map(()=>4.5), color:'#f44336', dash:[5,5], width:1 },
@@ -130,7 +136,12 @@
 
             bar.className = 'success';
             const ts = gData.timestamp || gData.updatedAt || null;
-            const tsText = ts ? new Date(ts).toLocaleString('zh-TW') : new Date().toLocaleString('zh-TW');
+            let tsText;
+            try {
+                tsText = ts ? new Date(ts).toLocaleString('zh-TW') : new Date().toLocaleString('zh-TW');
+            } catch (_) {
+                tsText = ts ? new Date(ts).toLocaleString() : new Date().toLocaleString();
+            }
             bar.innerText = dataSource === 'live API'
                 ? `✅ 數據同步完成（即時） ${tsText}`
                 : `✅ 數據已載入（快照） ${tsText}`;
@@ -142,7 +153,14 @@
             renderDualAxis(sc);
             renderAlloc(sc);
             renderPanic(panic);
-            renderCharts();
+
+            // Charts are non-critical — isolated try-catch so chart bugs never block KPI display
+            try {
+                renderCharts();
+            } catch (chartErr) {
+                console.warn('Chart rendering error (non-fatal):', chartErr);
+                bar.innerText += ' ⚠️ 部分圖表載入失敗';
+            }
 
         } catch (e) {
             bar.className = 'error';
