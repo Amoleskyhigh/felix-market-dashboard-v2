@@ -59,6 +59,17 @@
             ]));
         }
 
+        // Market Breadth (% stocks above 200MA)
+        if (d.breadth && d.breadth.history && d.breadth.history.length > 0) {
+            const brTs = d.breadth.history.map(h => new Date(h.date).getTime());
+            const brVals = d.breadth.history.map(h => h.value);
+            chartsDrawn.push(drawMulti('chart-breadth', brTs, [
+                { label:'廣度%', data: brVals, color:'#26c6da', width:2 },
+                { label:'65%', data: brVals.map(()=>65), color:'#4caf50', dash:[5,5], width:1 },
+                { label:'50%', data: brVals.map(()=>50), color:'#ff9800', dash:[3,3], width:1 },
+            ]));
+        }
+
         if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1)
             chartsDrawn.push(drawSingle('chart-qqq', normalizeTs(d.qqq.timestamps), d.qqq.closes, '#4fc3f7', 'QQQ'));
         if (d.smh && d.smh.closes && d.smh.closes.length > 1)
