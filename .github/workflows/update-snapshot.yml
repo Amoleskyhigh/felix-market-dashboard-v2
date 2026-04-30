@@ -1,0 +1,30 @@
+name: Update Market Snapshot
+
+on:
+  schedule:
+    - cron: '50 11 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  update-snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - name: Download snapshot
+        run: curl -sf "https://raw.githubusercontent.com/Amoleskyhigh/felix-market-dashboard-v2/main/market-data-snapshot.json" -o market-data-snapshot.json
+      - name: Update snapshot
+        env:
+          AV_KEY: ${{ secrets.AV_KEY }}
+        run: python .github/scripts/update_snapshot.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add market-data-snapshot.json
+          git diff --cached --quiet || git commit -m "chore: update market snapshot $(date -u +%Y-%m-%d) [skip ci]" && git push
