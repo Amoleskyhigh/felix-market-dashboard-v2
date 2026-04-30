@@ -4,6 +4,27 @@
         return ts[0] < 1e12 ? ts.map(t => t * 1000) : ts;
     }
 
+    // Sort timestamp+close pairs ascending and deduplicate.
+    // Fixes the "today prepended to ascending backfill" ordering bug that causes
+    // calcMA_full() to receive disordered data → wrong MA values → straight lines.
+    function sortChronologically(timestamps, closes) {
+        if (!timestamps || timestamps.length < 2) return [normalizeTs(timestamps), closes];
+        const ts = normalizeTs(timestamps);
+        const pairs = ts.map((t, i) => [t, closes[i]])
+                        .filter(p => p[0] && p[1] != null)
+                        .sort((a, b) => a[0] - b[0]);
+        // Remove duplicate timestamps (keeps last daily candle if any)
+        const deduped = pairs.filter((p, i) => i === 0 || p[0] !== pairs[i-1][0]);
+        return [deduped.map(p => p[0]), deduped.map(p => p[1])];
+    }
+
+    // Parse "YYYY-MM-DD" as LOCAL midnight instead of UTC midnight.
+    // new Date("2026-04-27") = UTC midnight = PST 5 PM the day before → wrong axis.
+    function parseLocalDate(s) {
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d).getTime();
+    }
+
     function renderCharts() {
         const d = gData;
         chartsDrawn.forEach(c => c.destroy());
@@ -12,45 +33,49 @@
         // SPY vs MA200
         if (d.spy || d.spx) {
             const src = d.spy || d.spx;
-            const ma200 = calcMA_full(src.closes, 200);
-            chartsDrawn.push(drawMulti('chart-spy', normalizeTs(src.timestamps), [
-                { label:'SPY', data: src.closes, color:'#4fc3f7', width:1.5 },
+            const [spyTs, spyCloses] = sortChronologically(src.timestamps, src.closes);
+            const ma200 = calcMA_full(spyCloses, 200);
+            chartsDrawn.push(drawMulti('chart-spy', spyTs, [
+                { label:'SPY', data: spyCloses, color:'#4fc3f7', width:1.5 },
                 { label:'MA200', data: ma200, color:'#f44336', dash:[4,4], width:1 }
             ]));
         }
 
         // Shiller PE
         if (d.shiller && d.shiller.history && d.shiller.history.length > 0) {
-            const peData = { timestamps: d.shiller.history.map(h=>new Date(h.date).getTime()), closes: d.shiller.history.map(h=>h.value) };
-            chartsDrawn.push(drawMulti('chart-pe', peData.timestamps, [
-                { label:'Shiller PE', data: peData.closes, color:'#ff9800', width:1.5 },
-                { label:'+1σ', data: peData.closes.map(()=>PE_WARN1), color:'#ff5722', dash:[5,5], width:1 },
-                { label:'Mean', data: peData.closes.map(()=>AI_MEAN), color:'#4fc3f7', dash:[3,3], width:1 },
+            const peTs = d.shiller.history.map(h => parseLocalDate(h.date));
+            const peVals = d.shiller.history.map(h => h.value);
+            chartsDrawn.push(drawMulti('chart-pe', peTs, [
+                { label:'Shiller PE', data: peVals, color:'#ff9800', width:1.5 },
+                { label:'+1σ', data: peVals.map(()=>PE_WARN1), color:'#ff5722', dash:[5,5], width:1 },
+                { label:'Mean', data: peVals.map(()=>AI_MEAN), color:'#4fc3f7', dash:[3,3], width:1 },
             ]));
         }
 
         // Copper
         if (d.copper) {
-            const ma3 = calcMA_full(d.copper.closes, 3);
-            chartsDrawn.push(drawMulti('chart-copper', normalizeTs(d.copper.timestamps), [
-                { label:'Copper', data: d.copper.closes, color:'#cd7f32', width:1.5 },
+            const [copperTs, copperCloses] = sortChronologically(d.copper.timestamps, d.copper.closes);
+            const ma3 = calcMA_full(copperCloses, 3);
+            chartsDrawn.push(drawMulti('chart-copper', copperTs, [
+                { label:'Copper', data: copperCloses, color:'#cd7f32', width:1.5 },
                 { label:'MA3', data: ma3, color:'#ffeb3b', dash:[4,4], width:1 }
             ]));
         }
 
         // VIX
         if (d.vix && d.vix.closes && d.vix.closes.length > 1) {
-            chartsDrawn.push(drawMulti('chart-vix', normalizeTs(d.vix.timestamps), [
-                { label:'VIX', data: d.vix.closes, color:'#f44336', width:1.5 },
-                { label:'35', data: d.vix.closes.map(()=>35), color:'#ff5722', dash:[5,5], width:1 },
-                { label:'28', data: d.vix.closes.map(()=>28), color:'#ff9800', dash:[3,3], width:1 },
-                { label:'20', data: d.vix.closes.map(()=>20), color:'#888', dash:[3,3], width:1 },
+            const [vixTs, vixCloses] = sortChronologically(d.vix.timestamps, d.vix.closes);
+            chartsDrawn.push(drawMulti('chart-vix', vixTs, [
+                { label:'VIX', data: vixCloses, color:'#f44336', width:1.5 },
+                { label:'35', data: vixCloses.map(()=>35), color:'#ff5722', dash:[5,5], width:1 },
+                { label:'28', data: vixCloses.map(()=>28), color:'#ff9800', dash:[3,3], width:1 },
+                { label:'20', data: vixCloses.map(()=>20), color:'#888', dash:[3,3], width:1 },
             ]));
         }
 
         // HY OAS — normalize value from % to bp if needed (FRED gives %, chart expects bp)
         if (d.hyOAS && d.hyOAS.history && d.hyOAS.history.length > 1) {
-            const hyTs = d.hyOAS.history.map(h => new Date(h.date).getTime());
+            const hyTs = d.hyOAS.history.map(h => parseLocalDate(h.date));
             const hyVals = d.hyOAS.history.map(h => h.value < 10 ? h.value * 100 : h.value);
             chartsDrawn.push(drawMulti('chart-hyoas', hyTs, [
                 { label:'HY OAS', data: hyVals, color:'#ef5350', width:1.5 },
@@ -61,37 +86,43 @@
 
         // Market Breadth (% stocks above 200MA)
         if (d.breadth && d.breadth.history && d.breadth.history.length > 0) {
-            const brTs = d.breadth.history.map(h => new Date(h.date).getTime());
+            const brTs = d.breadth.history.map(h => parseLocalDate(h.date));
             const brVals = d.breadth.history.map(h => h.value);
             chartsDrawn.push(drawMulti('chart-breadth', brTs, [
                 { label:'廣度%', data: brVals, color:'#26c6da', width:2 },
                 { label:'65%', data: brVals.map(()=>65), color:'#4caf50', dash:[5,5], width:1 },
                 { label:'50%', data: brVals.map(()=>50), color:'#ff9800', dash:[3,3], width:1 },
-            ]));
+            ], { timeUnit: 'day' }));
         }
 
-        if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1)
-            chartsDrawn.push(drawSingle('chart-qqq', normalizeTs(d.qqq.timestamps), d.qqq.closes, '#4fc3f7', 'QQQ'));
-        if (d.smh && d.smh.closes && d.smh.closes.length > 1)
-            chartsDrawn.push(drawSingle('chart-smh', normalizeTs(d.smh.timestamps), d.smh.closes, '#ce93d8', 'SMH'));
+        if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1) {
+            const [qqqTs, qqqCloses] = sortChronologically(d.qqq.timestamps, d.qqq.closes);
+            chartsDrawn.push(drawSingle('chart-qqq', qqqTs, qqqCloses, '#4fc3f7', 'QQQ'));
+        }
+        if (d.smh && d.smh.closes && d.smh.closes.length > 1) {
+            const [smhTs, smhCloses] = sortChronologically(d.smh.timestamps, d.smh.closes);
+            chartsDrawn.push(drawSingle('chart-smh', smhTs, smhCloses, '#ce93d8', 'SMH'));
+        }
 
         // DXY with MA20
         if (d.dxy) {
-            const ma20 = calcMA_full(d.dxy.closes, 20);
-            chartsDrawn.push(drawMulti('chart-dxy', normalizeTs(d.dxy.timestamps), [
-                { label:'DXY', data: d.dxy.closes, color:'#81c784', width:1.5 },
+            const [dxyTs, dxyCloses] = sortChronologically(d.dxy.timestamps, d.dxy.closes);
+            const ma20 = calcMA_full(dxyCloses, 20);
+            chartsDrawn.push(drawMulti('chart-dxy', dxyTs, [
+                { label:'DXY', data: dxyCloses, color:'#81c784', width:1.5 },
                 { label:'MA20', data: ma20, color:'#ffeb3b', dash:[4,4], width:1 }
             ]));
         }
 
         // TNX with MA20
         if (d.tnx) {
-            const ma20 = calcMA_full(d.tnx.closes, 20);
-            chartsDrawn.push(drawMulti('chart-tnx', normalizeTs(d.tnx.timestamps), [
-                { label:'10Y Yield', data: d.tnx.closes, color:'#ffd54f', width:1.5 },
+            const [tnxTs, tnxCloses] = sortChronologically(d.tnx.timestamps, d.tnx.closes);
+            const ma20 = calcMA_full(tnxCloses, 20);
+            chartsDrawn.push(drawMulti('chart-tnx', tnxTs, [
+                { label:'10Y Yield', data: tnxCloses, color:'#ffd54f', width:1.5 },
                 { label:'MA20', data: ma20, color:'#4fc3f7', dash:[4,4], width:1 },
-                { label:'4.5%', data: d.tnx.closes.map(()=>4.5), color:'#f44336', dash:[5,5], width:1 },
-                { label:'3.5%', data: d.tnx.closes.map(()=>3.5), color:'#4caf50', dash:[5,5], width:1 },
+                { label:'4.5%', data: tnxCloses.map(()=>4.5), color:'#f44336', dash:[5,5], width:1 },
+                { label:'3.5%', data: tnxCloses.map(()=>3.5), color:'#4caf50', dash:[5,5], width:1 },
             ]));
         }
     }
@@ -104,7 +135,7 @@
         });
     }
 
-    function drawMulti(id, timestamps, datasets) {
+    function drawMulti(id, timestamps, datasets, opts) {
         const ds = datasets.filter(d=>d.data).map(d => ({
             label: d.label,
             data: d.data,
@@ -115,10 +146,12 @@
             fill: false,
             spanGaps: true
         }));
+        const xScaleOpts = { type:'time', ticks:{maxTicksLimit:5}, grid:{color:'#1a2a3a'} };
+        if (opts && opts.timeUnit) xScaleOpts.time = { unit: opts.timeUnit };
         return new Chart(document.getElementById(id), {
             type:'line',
             data:{ labels: timestamps.map(t=>new Date(t)), datasets: ds },
-            options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x:{ type:'time', ticks:{maxTicksLimit:5}, grid:{color:'#1a2a3a'} }, y:{ grid:{color:'#1a2a3a'} } } }
+            options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x: xScaleOpts, y:{ grid:{color:'#1a2a3a'} } } }
         });
     }
 
