@@ -16,8 +16,6 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install requests
-      - name: Download snapshot
-        run: curl -sf "https://raw.githubusercontent.com/Amoleskyhigh/felix-market-dashboard-v2/main/market-data-snapshot.json" -o market-data-snapshot.json
       - name: Update snapshot
         env:
           AV_KEY: ${{ secrets.AV_KEY }}
