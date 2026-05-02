@@ -1,1 +1,260 @@
-ICAgIC8vIE5vcm1hbGl6ZSB0aW1lc3RhbXBzIHRvIG1zIChBbHBoYSBWYW50YWdlIGdpdmVzIHNlY29uZHMsIG90aGVycyBtcykKICAgIGZ1bmN0aW9uIG5vcm1hbGl6ZVRzKHRzKSB7CiAgICAgICAgaWYgKCF0cyB8fCAhdHMubGVuZ3RoKSByZXR1cm4gdHM7CiAgICAgICAgcmV0dXJuIHRzWzBdIDwgMWUxMiA/IHRzLm1hcCh0ID0+IHQgKiAxMDAwKSA6IHRzOwogICAgfQoKICAgIC8vIFNvcnQgdGltZXN0YW1wK2Nsb3NlIHBhaXJzIGFzY2VuZGluZyBhbmQgZGVkdXBsaWNhdGUuCiAgICAvLyBGaXhlcyB0aGUgInRvZGF5IHByZXBlbmRlZCB0byBhc2NlbmRpbmcgYmFja2ZpbGwiIG9yZGVyaW5nIGJ1Zy4KICAgIGZ1bmN0aW9uIHNvcnRDaHJvbm9sb2dpY2FsbHkodGltZXN0YW1wcywgY2xvc2VzKSB7CiAgICAgICAgaWYgKCF0aW1lc3RhbXBzIHx8IHRpbWVzdGFtcHMubGVuZ3RoIDwgMikgcmV0dXJuIFtub3JtYWxpemVUcyh0aW1lc3RhbXBzKSwgY2xvc2VzXTsKICAgICAgICBjb25zdCB0cyA9IG5vcm1hbGl6ZVRzKHRpbWVzdGFtcHMpOwogICAgICAgIGNvbnN0IHBhaXJzID0gdHMubWFwKCh0LCBpKSA9PiBbdCwgY2xvc2VzW2ldXSkKICAgICAgICAgICAgICAgICAgICAgICAgLmZpbHRlcihwID0+IHBbMF0gJiYgcFsxXSAhPSBudWxsKQogICAgICAgICAgICAgICAgICAgICAgICAuc29ydCgoYSwgYikgPT4gYVswXSAtIGJbMF0pOwogICAgICAgIGNvbnN0IGRlZHVwZWQgPSBwYWlycy5maWx0ZXIoKHAsIGkpID0+IGkgPT09IDAgfHwgcFswXSAhPT0gcGFpcnNbaS0xXVswXSk7CiAgICAgICAgcmV0dXJuIFtkZWR1cGVkLm1hcChwID0+IHBbMF0pLCBkZWR1cGVkLm1hcChwID0+IHBbMV0pXTsKICAgIH0KCiAgICAvLyBXaGVyZSBjb25zZWN1dGl2ZSB0aW1lc3RhbXBzIGFyZSBtb3JlIHRoYW4gbWF4R2FwRGF5cyBhcGFydCwgaW5zZXJ0IGEKICAgIC8vIG51bGwgcGxhY2Vob2xkZXIgc28gQ2hhcnQuanMgcmVuZGVycyBhIHZpc2libGUgYnJlYWsgaW5zdGVhZCBvZiBhCiAgICAvLyBtaXNsZWFkaW5nIHN0cmFpZ2h0IGxpbmUgYWNyb3NzIHRoZSBnYXAuCiAgICAvLyBBY2NlcHRzIHRpbWVzdGFtcHMgKyBhbnkgbnVtYmVyIG9mIHBhcmFsbGVsIGRhdGEgYXJyYXlzLgogICAgLy8gUmV0dXJucyBbbmV3VGltZXN0YW1wcywgLi4ubmV3RGF0YUFycmF5c10uCiAgICBmdW5jdGlvbiBpbnNlcnROdWxsc0ZvckdhcHModGltZXN0YW1wcywgLi4uZGF0YUFycmF5cykgewogICAgICAgIGNvbnN0IG1heEdhcE1zID0gNTAgKiAyNCAqIDM2MDAgKiAxMDAwOyAvLyA1MCBkYXlzCiAgICAgICAgaWYgKHRpbWVzdGFtcHMubGVuZ3RoIDwgMikgcmV0dXJuIFt0aW1lc3RhbXBzLCAuLi5kYXRhQXJyYXlzXTsKICAgICAgICBjb25zdCBuZXdUcyA9IFt0aW1lc3RhbXBzWzBdXTsKICAgICAgICBjb25zdCBuZXdBcnJzID0gZGF0YUFycmF5cy5tYXAoYXJyID0+IFthcnJbMF1dKTsKICAgICAgICBmb3IgKGxldCBpID0gMTsgaSA8IHRpbWVzdGFtcHMubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKHRpbWVzdGFtcHNbaV0gLSB0aW1lc3RhbXBzW2kgLSAxXSA+IG1heEdhcE1zKSB7CiAgICAgICAgICAgICAgICAvLyBQbGFjZSB0aGUgbnVsbCBtaWR3YXkgdGhyb3VnaCB0aGUgZ2FwCiAgICAgICAgICAgICAgICBuZXdUcy5wdXNoKE1hdGguZmxvb3IoKHRpbWVzdGFtcHNbaSAtIDFdICsgdGltZXN0YW1wc1tpXSkgLyAyKSk7CiAgICAgICAgICAgICAgICBuZXdBcnJzLmZvckVhY2goYXJyID0+IGFyci5wdXNoKG51bGwpKTsKICAgICAgICAgICAgfQogICAgICAgICAgICBuZXdUcy5wdXNoKHRpbWVzdGFtcHNbaV0pOwogICAgICAgICAgICBuZXdBcnJzLmZvckVhY2goKGFyciwgaikgPT4gYXJyLnB1c2goZGF0YUFycmF5c1tqXVtpXSkpOwogICAgICAgIH0KICAgICAgICByZXR1cm4gW25ld1RzLCAuLi5uZXdBcnJzXTsKICAgIH0KCiAgICAvLyBQYXJzZSAiWVlZWS1NTS1ERCIgYXMgTE9DQUwgbWlkbmlnaHQgaW5zdGVhZCBvZiBVVEMgbWlkbmlnaHQuCiAgICAvLyBuZXcgRGF0ZSgiMjAyNi0wNC0yNyIpID0gVVRDIG1pZG5pZ2h0ID0gUFNUIDVQTSB0aGUgZGF5IGJlZm9yZSDihpIgd3JvbmcgYXhpcy4KICAgIGZ1bmN0aW9uIHBhcnNlTG9jYWxEYXRlKHMpIHsKICAgICAgICBjb25zdCBbeSwgbSwgZF0gPSBzLnNwbGl0KCctJykubWFwKE51bWJlcik7CiAgICAgICAgcmV0dXJuIG5ldyBEYXRlKHksIG0gLSAxLCBkKS5nZXRUaW1lKCk7CiAgICB9CgogICAgZnVuY3Rpb24gcmVuZGVyQ2hhcnRzKCkgewogICAgICAgIGNvbnN0IGQgPSBnRGF0YTsKICAgICAgICBjaGFydHNEcmF3bi5mb3JFYWNoKGMgPT4gYy5kZXN0cm95KCkpOwogICAgICAgIGNoYXJ0c0RyYXduID0gW107CgogICAgICAgIC8vIFNQWSB2cyBNQTIwMAogICAgICAgIGlmIChkLnNweSB8fCBkLnNweCkgewogICAgICAgICAgICBjb25zdCBzcmMgPSBkLnNweSB8fCBkLnNweDsKICAgICAgICAgICAgY29uc3QgW3NweVRzU29ydGVkLCBzcHlDbG9zZXNTb3J0ZWRdID0gc29ydENocm9ub2xvZ2ljYWxseShzcmMudGltZXN0YW1wcywgc3JjLmNsb3Nlcyk7CiAgICAgICAgICAgIGNvbnN0IG1hMjAwcmF3ID0gY2FsY01BX2Z1bGwoc3B5Q2xvc2VzU29ydGVkLCAyMDApOwogICAgICAgICAgICBjb25zdCBbc3B5VHMsIHNweUNsb3NlcywgbWEyMDBdID0gaW5zZXJ0TnVsbHNGb3JHYXBzKHNweVRzU29ydGVkLCBzcHlDbG9zZXNTb3J0ZWQsIG1hMjAwcmF3KTsKICAgICAgICAgICAgY2hhcnRzRHJhd24ucHVzaChkcmF3TXVsdGkoJ2NoYXJ0LXNweScsIHNweVRzLCBbCiAgICAgICAgICAgICAgICB7IGxhYmVsOidTUFknLCAgIGRhdGE6IHNweUNsb3NlcywgY29sb3I6JyM0ZmMzZjcnLCB3aWR0aDoxLjUgfSwKICAgICAgICAgICAgICAgIHsgbGFiZWw6J01BMjAwJywgZGF0YTogbWEyMDAsICAgICBjb2xvcjonI2Y0NDMzNicsIGRhc2g6WzQsNF0sIHdpZHRoOjEgfQogICAgICAgICAgICBdKSk7CiAgICAgICAgfQoKICAgICAgICAvLyBTaGlsbGVyIFBFCiAgICAgICAgaWYgKGQuc2hpbGxlciAmJiBkLnNoaWxsZXIuaGlzdG9yeSAmJiBkLnNoaWxsZXIuaGlzdG9yeS5sZW5ndGggPiAwKSB7CiAgICAgICAgICAgIGNvbnN0IHBlUGFpcnMgPSBkLnNoaWxsZXIuaGlzdG9yeQogICAgICAgICAgICAgICAgLm1hcChoID0+IFtwYXJzZUxvY2FsRGF0ZShoLmRhdGUpLCBoLnZhbHVlXSkKICAgICAgICAgICAgICAgIC5zb3J0KChhLCBiKSA9PiBhWzBdIC0gYlswXSk7CiAgICAgICAgICAgIGNvbnN0IFtwZVRzLCBwZVZhbHNdID0gaW5zZXJ0TnVsbHNGb3JHYXBzKHBlUGFpcnMubWFwKHAgPT4gcFswXSksIHBlUGFpcnMubWFwKHAgPT4gcFsxXSkpOwogICAgICAgICAgICBjaGFydHNEcmF3bi5wdXNoKGRyYXdNdWx0aSgnY2hhcnQtcGUnLCBwZVRzLCBbCiAgICAgICAgICAgICAgICB7IGxhYmVsOidTaGlsbGVyIFBFJywgZGF0YTogcGVWYWxzLCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6JyNmZjk4MDAnLCB3aWR0aDoxLjUgfSwKICAgICAgICAgICAgICAgIHsgbGFiZWw6Jysxz4MnLCAgICAgICAgZGF0YTogbmV3IEFycmF5KHBlVHMubGVuZ3RoKS5maWxsKFBFX1dBUk4xKSwgY29sb3I6JyNmZjU3MjInLCBkYXNoOls1LDVdLCB3aWR0aDoxLCBzcGFuR2Fwczp0cnVlIH0sCiAgICAgICAgICAgICAgICB7IGxhYmVsOidNZWFuJywgICAgICAgZGF0YTogbmV3IEFycmF5KHBlVHMubGVuZ3RoKS5maWxsKEFJX01FQU4pLCAgY29sb3I6JyM0ZmMzZjcnLCBkYXNoOlszLDNdLCB3aWR0aDoxLCBzcGFuR2Fwczp0cnVlIH0sCiAgICAgICAgICAgIF0pKTsKICAgICAgICB9CgogICAgICAgIC8vIENvcHBlcgogICAgICAgIGlmIChkLmNvcHBlcikgewogICAgICAgICAgICBjb25zdCBbY29wcGVyVHNTb3J0ZWQsIGNvcHBlckNsb3Nlc1NvcnRlZF0gPSBzb3J0Q2hyb25vbG9naWNhbGx5KGQuY29wcGVyLnRpbWVzdGFtcHMsIGQuY29wcGVyLmNsb3Nlcyk7CiAgICAgICAgICAgIGNvbnN0IG1hM3JhdyA9IGNhbGNNQV9mdWxsKGNvcHBlckNsb3Nlc1NvcnRlZCwgMyk7CiAgICAgICAgICAgIGNvbnN0IFtjb3BwZXJUcywgY29wcGVyQ2xvc2VzLCBtYTNdID0gaW5zZXJ0TnVsbHNGb3JHYXBzKGNvcHBlclRzU29ydGVkLCBjb3BwZXJDbG9zZXNTb3J0ZWQsIG1hM3Jhdyk7CiAgICAgICAgICAgIGNoYXJ0c0RyYXduLnB1c2goZHJhd011bHRpKCdjaGFydC1jb3BwZXInLCBjb3BwZXJUcywgWwogICAgICAgICAgICAgICAgeyBsYWJlbDonQ29wcGVyJywgZGF0YTogY29wcGVyQ2xvc2VzLCBjb2xvcjonI2NkN2YzMicsIHdpZHRoOjEuNSB9LAogICAgICAgICAgICAgICAgeyBsYWJlbDonTUEzJywgICAgZGF0YTogbWEzLCAgICAgICAgICBjb2xvcjonI2ZmZWIzYicsIGRhc2g6WzQsNF0sIHdpZHRoOjEgfQogICAgICAgICAgICBdKSk7CiAgICAgICAgfQoKICAgICAgICAvLyBWSVgKICAgICAgICBpZiAoZC52aXggJiYgZC52aXguY2xvc2VzICYmIGQudml4LmNsb3Nlcy5sZW5ndGggPiAxKSB7CiAgICAgICAgICAgIGNvbnN0IFt2aXhUc1NvcnRlZCwgdml4Q2xvc2VzU29ydGVkXSA9IHNvcnRDaHJvbm9sb2dpY2FsbHkoZC52aXgudGltZXN0YW1wcywgZC52aXguY2xvc2VzKTsKICAgICAgICAgICAgY29uc3QgW3ZpeFRzLCB2aXhDbG9zZXNdID0gaW5zZXJ0TnVsbHNGb3JHYXBzKHZpeFRzU29ydGVkLCB2aXhDbG9zZXNTb3J0ZWQpOwogICAgICAgICAgICBjaGFydHNEcmF3bi5wdXNoKGRyYXdNdWx0aSgnY2hhcnQtdml4Jywgdml4VHMsIFsKICAgICAgICAgICAgICAgIHsgbGFiZWw6J1ZJWCcsIGRhdGE6IHZpeENsb3NlcywgICAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOicjZjQ0MzM2Jywgd2lkdGg6MS41IH0sCiAgICAgICAgICAgICAgICB7IGxhYmVsOiczNScsICBkYXRhOiBuZXcgQXJyYXkodml4VHMubGVuZ3RoKS5maWxsKDM1KSwgICBjb2xvcjonI2ZmNTcyMicsIGRhc2g6WzUsNV0sIHdpZHRoOjEsIHNwYW5HYXBzOnRydWUgfSwKICAgICAgICAgICAgICAgIHsgbGFiZWw6JzI4JywgIGRhdGE6IG5ldyBBcnJheSh2aXhUcy5sZW5ndGgpLmZpbGwoMjgpLCAgIGNvbG9yOicjZmY5ODAwJywgZGFzaDpbMywzXSwgd2lkdGg6MSwgc3BhbkdhcHM6dHJ1ZSB9LAogICAgICAgICAgICAgICAgeyBsYWJlbDonMjAnLCAgZGF0YTogbmV3IEFycmF5KHZpeFRzLmxlbmd0aCkuZmlsbCgyMCksICAgY29sb3I6JyM4ODgnLCAgICBkYXNoOlszLDNdLCB3aWR0aDoxLCBzcGFuR2Fwczp0cnVlIH0sCiAgICAgICAgICAgIF0pKTsKICAgICAgICB9CgogICAgICAgIC8vIEhZIE9BUyDigJQgbm9ybWFsaXplIHZhbHVlIGZyb20gJSB0byBicCBpZiBuZWVkZWQgKEZSRUQgZ2l2ZXMgJSwgY2hhcnQgZXhwZWN0cyBicCkKICAgICAgICBpZiAoZC5oeU9BUyAmJiBkLmh5T0FTLmhpc3RvcnkgJiYgZC5oeU9BUy5oaXN0b3J5Lmxlbmd0aCA+IDEpIHsKICAgICAgICAgICAgY29uc3QgaHlQYWlycyA9IGQuaHlPQVMuaGlzdG9yeQogICAgICAgICAgICAgICAgLm1hcChoID0+IFtwYXJzZUxvY2FsRGF0ZShoLmRhdGUpLCBoLnZhbHVlIDwgMTAgPyBoLnZhbHVlICogMTAwIDogaC52YWx1ZV0pCiAgICAgICAgICAgICAgICAuc29ydCgoYSwgYikgPT4gYVswXSAtIGJbMF0pOwogICAgICAgICAgICBjb25zdCBbaHlUcywgaHlWYWxzXSA9IGluc2VydE51bGxzRm9yR2FwcyhoeVBhaXJzLm1hcChwID0+IHBbMF0pLCBoeVBhaXJzLm1hcChwID0+IHBbMV0pKTsKICAgICAgICAgICAgY2hhcnRzRHJhd24ucHVzaChkcmF3TXVsdGkoJ2NoYXJ0LWh5b2FzJywgaHlUcywgWwogICAgICAgICAgICAgICAgeyBsYWJlbDonSFkgT0FTJywgZGF0YTogaHlWYWxzLCAgICAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOicjZWY1MzUwJywgd2lkdGg6MS41IH0sCiAgICAgICAgICAgICAgICB7IGxhYmVsOic1MDBicCcsICBkYXRhOiBuZXcgQXJyYXkoaHlUcy5sZW5ndGgpLmZpbGwoNTAwKSwgY29sb3I6JyNmZjk4MDAnLCBkYXNoOls1LDVdLCB3aWR0aDoxLCBzcGFuR2Fwczp0cnVlIH0sCiAgICAgICAgICAgICAgICB7IGxhYmVsOiczMDBicCcsICBkYXRhOiBuZXcgQXJyYXkoaHlUcy5sZW5ndGgpLmZpbGwoMzAwKSwgY29sb3I6JyM0Y2FmNTAnLCBkYXNoOlszLDNdLCB3aWR0aDoxLCBzcGFuR2Fwczp0cnVlIH0sCiAgICAgICAgICAgIF0pKTsKICAgICAgICB9CgogICAgICAgIC8vIE1hcmtldCBCcmVhZHRoICglIHN0b2NrcyBhYm92ZSAyMDBNQSkKICAgICAgICBpZiAoZC5icmVhZHRoICYmIGQuYnJlYWR0aC5oaXN0b3J5ICYmIGQuYnJlYWR0aC5oaXN0b3J5Lmxlbmd0aCA+IDApIHsKICAgICAgICAgICAgY29uc3QgYnJQYWlycyA9IGQuYnJlYWR0aC5oaXN0b3J5CiAgICAgICAgICAgICAgICAubWFwKGggPT4gW3BhcnNlTG9jYWxEYXRlKGguZGF0ZSksIGgudmFsdWVdKQogICAgICAgICAgICAgICAgLnNvcnQoKGEsIGIpID0+IGFbMF0gLSBiWzBdKTsKICAgICAgICAgICAgY29uc3QgW2JyVHMsIGJyVmFsc10gPSBpbnNlcnROdWxsc0ZvckdhcHMoYnJQYWlycy5tYXAocCA9PiBwWzBdKSwgYnJQYWlycy5tYXAocCA9PiBwWzFdKSk7CiAgICAgICAgICAgIGNoYXJ0c0RyYXduLnB1c2goZHJhd011bHRpKCdjaGFydC1icmVhZHRoJywgYnJUcywgWwogICAgICAgICAgICAgICAgeyBsYWJlbDon5buj5bqmJScsIGRhdGE6IGJyVmFscywgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6JyMyNmM2ZGEnLCB3aWR0aDoyIH0sCiAgICAgICAgICAgICAgICB7IGxhYmVsOic2NSUnLCAgIGRhdGE6IG5ldyBBcnJheShiclRzLmxlbmd0aCkuZmlsbCg2NSksICBjb2xvcjonIzRjYWY1MCcsIGRhc2g6WzUsNV0sIHdpZHRoOjEsIHNwYW5HYXBzOnRydWUgfSwKICAgICAgICAgICAgICAgIHsgbGFiZWw6JzUwJScsICAgZGF0YTogbmV3IEFycmF5KGJyVHMubGVuZ3RoKS5maWxsKDUwKSwgIGNvbG9yOicjZmY5ODAwJywgZGFzaDpbMywzXSwgd2lkdGg6MSwgc3BhbkdhcHM6dHJ1ZSB9LAogICAgICAgICAgICBdLCB7IHRpbWVVbml0OiAnZGF5JyB9KSk7CiAgICAgICAgfQoKICAgICAgICBpZiAoZC5xcXEgJiYgZC5xcXEuY2xvc2VzICYmIGQucXFxLmNsb3Nlcy5sZW5ndGggPiAxKSB7CiAgICAgICAgICAgIGNvbnN0IFtxcXFUc1NvcnRlZCwgcXFxQ2xvc2VzU29ydGVkXSA9IHNvcnRDaHJvbm9sb2dpY2FsbHkoZC5xcXEudGltZXN0YW1wcywgZC5xcXEuY2xvc2VzKTsKICAgICAgICAgICAgY29uc3QgW3FxcVRzLCBxcXFDbG9zZXNdID0gaW5zZXJ0TnVsbHNGb3JHYXBzKHFxcVRzU29ydGVkLCBxcXFDbG9zZXNTb3J0ZWQpOwogICAgICAgICAgICBjaGFydHNEcmF3bi5wdXNoKGRyYXdTaW5nbGUoJ2NoYXJ0LXFxcScsIHFxcVRzLCBxcXFDbG9zZXMsICcjNGZjM2Y3JywgJ1FRUScpKTsKICAgICAgICB9CiAgICAgICAgaWYgKGQuc21oICYmIGQuc21oLmNsb3NlcyAmJiBkLnNtaC5jbG9zZXMubGVuZ3RoID4gMSkgewogICAgICAgICAgICBjb25zdCBbc21oVHNTb3J0ZWQsIHNtaENsb3Nlc1NvcnRlZF0gPSBzb3J0Q2hyb25vbG9naWNhbGx5KGQuc21oLnRpbWVzdGFtcHMsIGQuc21oLmNsb3Nlcyk7CiAgICAgICAgICAgIGNvbnN0IFtzbWhUcywgc21oQ2xvc2VzXSA9IGluc2VydE51bGxzRm9yR2FwcyhzbWhUc1NvcnRlZCwgc21oQ2xvc2VzU29ydGVkKTsKICAgICAgICAgICAgY2hhcnRzRHJhd24ucHVzaChkcmF3U2luZ2xlKCdjaGFydC1zbWgnLCBzbWhUcywgc21oQ2xvc2VzLCAnI2NlOTNkOCcsICdTTUgnKSk7CiAgICAgICAgfQoKICAgICAgICAvLyBEWFkgd2l0aCBNQTIwCiAgICAgICAgaWYgKGQuZHh5KSB7CiAgICAgICAgICAgIGNvbnN0IFtkeHlUc1NvcnRlZCwgZHh5Q2xvc2VzU29ydGVkXSA9IHNvcnRDaHJvbm9sb2dpY2FsbHkoZC5keHkudGltZXN0YW1wcywgZC5keHkuY2xvc2VzKTsKICAgICAgICAgICAgY29uc3QgbWEyMHJhdyA9IGNhbGNNQV9mdWxsKGR4eUNsb3Nlc1NvcnRlZCwgMjApOwogICAgICAgICAgICBjb25zdCBbZHh5VHMsIGR4eUNsb3NlcywgbWEyMF0gPSBpbnNlcnROdWxsc0ZvckdhcHMoZHh5VHNTb3J0ZWQsIGR4eUNsb3Nlc1NvcnRlZCwgbWEyMHJhdyk7CiAgICAgICAgICAgIGNoYXJ0c0RyYXduLnB1c2goZHJhd011bHRpKCdjaGFydC1keHknLCBkeHlUcywgWwogICAgICAgICAgICAgICAgeyBsYWJlbDonRFhZJywgIGRhdGE6IGR4eUNsb3NlcywgY29sb3I6JyM4MWM3ODQnLCB3aWR0aDoxLjUgfSwKICAgICAgICAgICAgICAgIHsgbGFiZWw6J01BMjAnLCBkYXRhOiBtYTIwLCAgICAgIGNvbG9yOicjZmZlYjNiJywgZGFzaDpbNCw0XSwgd2lkdGg6MSB9CiAgICAgICAgICAgIF0pKTsKICAgICAgICB9CgogICAgICAgIC8vIFROWCB3aXRoIE1BMjAKICAgICAgICBpZiAoZC50bngpIHsKICAgICAgICAgICAgY29uc3QgW3RueFRzU29ydGVkLCB0bnhDbG9zZXNTb3J0ZWRdID0gc29ydENocm9ub2xvZ2ljYWxseShkLnRueC50aW1lc3RhbXBzLCBkLnRueC5jbG9zZXMpOwogICAgICAgICAgICBjb25zdCBtYTIwcmF3ID0gY2FsY01BX2Z1bGwodG54Q2xvc2VzU29ydGVkLCAyMCk7CiAgICAgICAgICAgIGNvbnN0IFt0bnhUcywgdG54Q2xvc2VzLCBtYTIwXSA9IGluc2VydE51bGxzRm9yR2Fwcyh0bnhUc1NvcnRlZCwgdG54Q2xvc2VzU29ydGVkLCBtYTIwcmF3KTsKICAgICAgICAgICAgY2hhcnRzRHJhd24ucHVzaChkcmF3TXVsdGkoJ2NoYXJ0LXRueCcsIHRueFRzLCBbCiAgICAgICAgICAgICAgICB7IGxhYmVsOicxMFkgWWllbGQnLCBkYXRhOiB0bnhDbG9zZXMsICAgICAgICAgICAgICAgICAgICAgICAgICBjb2xvcjonI2ZmZDU0ZicsIHdpZHRoOjEuNSB9LAogICAgICAgICAgICAgICAgeyBsYWJlbDonTUEyMCcsICAgICAgZGF0YTogbWEyMCwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6JyM0ZmMzZjcnLCBkYXNoOls0LDRdLCB3aWR0aDoxIH0sCiAgICAgICAgICAgICAgICB7IGxhYmVsOic0LjUlJywgICAgICBkYXRhOiBuZXcgQXJyYXkodG54VHMubGVuZ3RoKS5maWxsKDQuNSksIGNvbG9yOicjZjQ0MzM2JywgZGFzaDpbNSw1XSwgd2lkdGg6MSwgc3BhbkdhcHM6dHJ1ZSB9LAogICAgICAgICAgICAgICAgeyBsYWJlbDonMy41JScsICAgICAgZGF0YTogbmV3IEFycmF5KHRueFRzLmxlbmd0aCkuZmlsbCgzLjUpLCBjb2xvcjonIzRjYWY1MCcsIGRhc2g6WzUsNV0sIHdpZHRoOjEsIHNwYW5HYXBzOnRydWUgfSwKICAgICAgICAgICAgXSkpOwogICAgICAgIH0KICAgIH0KCiAgICBmdW5jdGlvbiBkcmF3U2luZ2xlKGlkLCB0aW1lc3RhbXBzLCBjbG9zZXMsIGNvbG9yLCBsYWJlbCkgewogICAgICAgIHJldHVybiBuZXcgQ2hhcnQoZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoaWQpLCB7CiAgICAgICAgICAgIHR5cGU6J2xpbmUnLAogICAgICAgICAgICBkYXRhOnsgbGFiZWxzOiB0aW1lc3RhbXBzLm1hcCh0PT5uZXcgRGF0ZSh0KSksIGRhdGFzZXRzOlt7CiAgICAgICAgICAgICAgICBsYWJlbCwgZGF0YTogY2xvc2VzLCBib3JkZXJDb2xvcjogY29sb3IsCiAgICAgICAgICAgICAgICBib3JkZXJXaWR0aDoxLjUsIHBvaW50UmFkaXVzOjAsIGZpbGw6ZmFsc2UsIHNwYW5HYXBzOmZhbHNlCiAgICAgICAgICAgIH1dIH0sCiAgICAgICAgICAgIG9wdGlvbnM6eyByZXNwb25zaXZlOnRydWUsIG1haW50YWluQXNwZWN0UmF0aW86ZmFsc2UsIHBsdWdpbnM6eyBsZWdlbmQ6e2Rpc3BsYXk6ZmFsc2V9IH0sCiAgICAgICAgICAgICAgICBzY2FsZXM6eyB4OnsgdHlwZTondGltZScsIHRpY2tzOnttYXhUaWNrc0xpbWl0OjV9LCBncmlkOntjb2xvcjonIzFhMmEzYSd9IH0sIHk6eyBncmlkOntjb2xvcjonIzFhMmEzYSd9IH0gfSB9CiAgICAgICAgfSk7CiAgICB9CgogICAgZnVuY3Rpb24gZHJhd011bHRpKGlkLCB0aW1lc3RhbXBzLCBkYXRhc2V0cywgb3B0cykgewogICAgICAgIGNvbnN0IGRzID0gZGF0YXNldHMuZmlsdGVyKGQ9PmQuZGF0YSkubWFwKGQgPT4gKHsKICAgICAgICAgICAgbGFiZWw6IGQubGFiZWwsCiAgICAgICAgICAgIGRhdGE6IGQuZGF0YSwKICAgICAgICAgICAgYm9yZGVyQ29sb3I6IGQuY29sb3IsCiAgICAgICAgICAgIGJvcmRlcldpZHRoOiBkLndpZHRoIHx8IDEuNSwKICAgICAgICAgICAgYm9yZGVyRGFzaDogZC5kYXNoIHx8IFtdLAogICAgICAgICAgICBwb2ludFJhZGl1czogMCwKICAgICAgICAgICAgZmlsbDogZmFsc2UsCiAgICAgICAgICAgIHNwYW5HYXBzOiBkLnNwYW5HYXBzICE9PSB1bmRlZmluZWQgPyBkLnNwYW5HYXBzIDogZmFsc2UKICAgICAgICB9KSk7CiAgICAgICAgY29uc3QgeFNjYWxlT3B0cyA9IHsgdHlwZTondGltZScsIHRpY2tzOnttYXhUaWNrc0xpbWl0OjV9LCBncmlkOntjb2xvcjonIzFhMmEzYSd9IH07CiAgICAgICAgaWYgKG9wdHMgJiYgb3B0cy50aW1lVW5pdCkgeFNjYWxlT3B0cy50aW1lID0geyB1bml0OiBvcHRzLnRpbWVVbml0IH07CiAgICAgICAgcmV0dXJuIG5ldyBDaGFydChkb2N1bWVudC5nZXRFbGVtZW50QnlJZChpZCksIHsKICAgICAgICAgICAgdHlwZTonbGluZScsCiAgICAgICAgICAgIGRhdGE6eyBsYWJlbHM6IHRpbWVzdGFtcHMubWFwKHQ9Pm5ldyBEYXRlKHQpKSwgZGF0YXNldHM6IGRzIH0sCiAgICAgICAgICAgIG9wdGlvbnM6eyByZXNwb25zaXZlOnRydWUsIG1haW50YWluQXNwZWN0UmF0aW86ZmFsc2UsIHBsdWdpbnM6eyBsZWdlbmQ6e2Rpc3BsYXk6ZmFsc2V9IH0sCiAgICAgICAgICAgICAgICBzY2FsZXM6eyB4OiB4U2NhbGVPcHRzLCB5OnsgZ3JpZDp7Y29sb3I6JyMxYTJhM2EnfSB9IH0gfQogICAgICAgIH0pOwogICAgfQoKICAgIGZ1bmN0aW9uIHVwZGF0ZUFsbG9jKCkgewogICAgICAgIGlmICghZ0RhdGEpIHJldHVybjsKICAgICAgICBjb25zdCBzYyA9IGNvbXB1dGVTY29yZSgpOwogICAgICAgIHJlbmRlckFsbG9jKHNjKTsKICAgIH0KCiAgICAvLyDilIDilIDilIAgSW5pdCDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKICAgIGFzeW5jIGZ1bmN0aW9uIGluaXQoKSB7CiAgICAgICAgY29uc3QgYmFyID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N0YXR1cy1iYXInKTsKICAgICAgICB0cnkgewogICAgICAgICAgICBsZXQgZGF0YVNvdXJjZSA9ICdsaXZlIEFQSSc7CiAgICAgICAgICAgIGxldCByZXM7CiAgICAgICAgICAgIHRyeSB7CiAgICAgICAgICAgICAgICByZXMgPSBhd2FpdCBmZXRjaCgnL2FwaS9kYXRhP3Q9JyArIERhdGUubm93KCkpOwogICAgICAgICAgICAgICAgaWYgKCFyZXMub2spIHRocm93IG5ldyBFcnJvcignbGl2ZSBhcGkgZmFpbGVkJyk7CiAgICAgICAgICAgICAgICBnRGF0YSA9IGF3YWl0IHJlcy5qc29uKCk7CiAgICAgICAgICAgIH0gY2F0Y2ggKF8pIHsKICAgICAgICAgICAgICAgIGRhdGFTb3VyY2UgPSAnc25hcHNob3QnOwogICAgICAgICAgICAgICAgcmVzID0gYXdhaXQgZmV0Y2goJy4vbWFya2V0LWRhdGEtc25hcHNob3QuanNvbj90PScgKyBEYXRlLm5vdygpKTsKICAgICAgICAgICAgICAgIGlmICghcmVzLm9rKSB0aHJvdyBuZXcgRXJyb3IoJ+eEoeazlei8ieWFpSBtYXJrZXQtZGF0YS1zbmFwc2hvdC5qc29uJyk7CiAgICAgICAgICAgICAgICAvLyBSb2J1c3QgcGFyc2U6IGhhbmRsZSBib3RoIHBsYWluIEpTT04gYW5kIGJhc2U2NC1lbmNvZGVkIEpTT04KICAgICAgICAgICAgICAgIGNvbnN0IHJhd1NuYXAgPSBhd2FpdCByZXMudGV4dCgpOwogICAgICAgICAgICAgICAgdHJ5IHsKICAgICAgICAgICAgICAgICAgICBnRGF0YSA9IEpTT04ucGFyc2UocmF3U25hcCk7CiAgICAgICAgICAgICAgICB9IGNhdGNoIChfYjY0KSB7CiAgICAgICAgICAgICAgICAgICAgZ0RhdGEgPSBKU09OLnBhcnNlKGF0b2IocmF3U25hcC50cmltKCkpKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQoKICAgICAgICAgICAgYmFyLmNsYXNzTmFtZSA9ICdzdWNjZXNzJzsKICAgICAgICAgICAgY29uc3QgdHMgPSBnRGF0YS50aW1lc3RhbXAgfHwgZ0RhdGEudXBkYXRlZEF0IHx8IG51bGw7CiAgICAgICAgICAgIGxldCB0c1RleHQ7CiAgICAgICAgICAgIHRyeSB7CiAgICAgICAgICAgICAgICB0c1RleHQgPSB0cyA/IG5ldyBEYXRlKHRzKS50b0xvY2FsZVN0cmluZygnemgtVFcnKSA6IG5ldyBEYXRlKCkudG9Mb2NhbGVTdHJpbmcoJ3poLVRXJyk7CiAgICAgICAgICAgIH0gY2F0Y2ggKF8pIHsKICAgICAgICAgICAgICAgIHRzVGV4dCA9IHRzID8gbmV3IERhdGUodHMpLnRvTG9jYWxlU3RyaW5nKCkgOiBuZXcgRGF0ZSgpLnRvTG9jYWxlU3RyaW5nKCk7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgYmFyLmlubmVyVGV4dCA9IGRhdGFTb3VyY2UgPT09ICdsaXZlIEFQSScKICAgICAgICAgICAgICAgID8gYOKchSDmlbjmk5rlkIzmraXlrozmiJDvvIjljbPmmYLvvIkgJHt0c1RleHR9YAogICAgICAgICAgICAgICAgOiBg4pyFIOaVuOaTmuW3sui8ieWFpe+8iOW/q+eFp++8iSAke3RzVGV4dH1gOwoKICAgICAgICAgICAgY29uc3Qgc2MgPSBjb21wdXRlU2NvcmUoKTsKICAgICAgICAgICAgY29uc3QgcGFuaWMgPSBjaGVja1BhbmljKCk7CgogICAgICAgICAgICByZW5kZXJLUElzKHNjKTsKICAgICAgICAgICAgcmVuZGVyRHVhbEF4aXMoc2MpOwogICAgICAgICAgICByZW5kZXJBbGxvYyhzYyk7CiAgICAgICAgICAgIHJlbmRlclBhbmljKHBhbmljKTsKCiAgICAgICAgICAgIC8vIENoYXJ0cyBhcmUgbm9uLWNyaXRpY2FsIOKAlCBpc29sYXRlZCB0cnktY2F0Y2ggc28gY2hhcnQgYnVncyBuZXZlciBibG9jayBLUEkgZGlzcGxheQogICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgcmVuZGVyQ2hhcnRzKCk7CiAgICAgICAgICAgIH0gY2F0Y2ggKGNoYXJ0RXJyKSB7CiAgICAgICAgICAgICAgICBjb25zb2xlLndhcm4oJ0NoYXJ0IHJlbmRlcmluZyBlcnJvciAobm9uLWZhdGFsKTonLCBjaGFydEVycik7CiAgICAgICAgICAgICAgICBiYXIuaW5uZXJUZXh0ICs9ICcg4pqg77iPIOmDqOWIhuWcluihqOi8ieWFpeWkseaVlyc7CiAgICAgICAgICAgIH0KCiAgICAgICAgfSBjYXRjaCAoZSkgewogICAgICAgICAgICBiYXIuY2xhc3NOYW1lID0gJ2Vycm9yJzsKICAgICAgICAgICAgYmFyLmlubmVyVGV4dCA9ICfinYwg57O757Wx6Yyv6KqkOiAnICsgZS5tZXNzYWdlOwogICAgICAgICAgICBjb25zb2xlLmVycm9yKGUpOwogICAgICAgIH0KICAgIH0KCiAgICBpbml0KCk7Cg==
+    // Normalize timestamps to ms (Alpha Vantage gives seconds, others ms)
+    function normalizeTs(ts) {
+        if (!ts || !ts.length) return ts;
+        return ts[0] < 1e12 ? ts.map(t => t * 1000) : ts;
+    }
+
+    // Sort timestamp+close pairs ascending and deduplicate.
+    // Fixes the "today prepended to ascending backfill" ordering bug.
+    function sortChronologically(timestamps, closes) {
+        if (!timestamps || timestamps.length < 2) return [normalizeTs(timestamps), closes];
+        const ts = normalizeTs(timestamps);
+        const pairs = ts.map((t, i) => [t, closes[i]])
+                        .filter(p => p[0] && p[1] != null)
+                        .sort((a, b) => a[0] - b[0]);
+        const deduped = pairs.filter((p, i) => i === 0 || p[0] !== pairs[i-1][0]);
+        return [deduped.map(p => p[0]), deduped.map(p => p[1])];
+    }
+
+    // Where consecutive timestamps are more than maxGapDays apart, insert a
+    // null placeholder so Chart.js renders a visible break instead of a
+    // misleading straight line across the gap.
+    // Accepts timestamps + any number of parallel data arrays.
+    // Returns [newTimestamps, ...newDataArrays].
+    function insertNullsForGaps(timestamps, ...dataArrays) {
+        const maxGapMs = 50 * 24 * 3600 * 1000; // 50 days
+        if (timestamps.length < 2) return [timestamps, ...dataArrays];
+        const newTs = [timestamps[0]];
+        const newArrs = dataArrays.map(arr => [arr[0]]);
+        for (let i = 1; i < timestamps.length; i++) {
+            if (timestamps[i] - timestamps[i - 1] > maxGapMs) {
+                // Place the null midway through the gap
+                newTs.push(Math.floor((timestamps[i - 1] + timestamps[i]) / 2));
+                newArrs.forEach(arr => arr.push(null));
+            }
+            newTs.push(timestamps[i]);
+            newArrs.forEach((arr, j) => arr.push(dataArrays[j][i]));
+        }
+        return [newTs, ...newArrs];
+    }
+
+    // Parse "YYYY-MM-DD" as LOCAL midnight instead of UTC midnight.
+    // new Date("2026-04-27") = UTC midnight = PST 5PM the day before → wrong axis.
+    function parseLocalDate(s) {
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d).getTime();
+    }
+
+    function renderCharts() {
+        const d = gData;
+        chartsDrawn.forEach(c => c.destroy());
+        chartsDrawn = [];
+
+        // SPY vs MA200
+        if (d.spy || d.spx) {
+            const src = d.spy || d.spx;
+            const [spyTsSorted, spyClosesSorted] = sortChronologically(src.timestamps, src.closes);
+            const ma200raw = calcMA_full(spyClosesSorted, 200);
+            const [spyTs, spyCloses, ma200] = insertNullsForGaps(spyTsSorted, spyClosesSorted, ma200raw);
+            chartsDrawn.push(drawMulti('chart-spy', spyTs, [
+                { label:'SPY',   data: spyCloses, color:'#4fc3f7', width:1.5 },
+                { label:'MA200', data: ma200,     color:'#f44336', dash:[4,4], width:1 }
+            ]));
+        }
+
+        // Shiller PE
+        if (d.shiller && d.shiller.history && d.shiller.history.length > 0) {
+            const pePairs = d.shiller.history
+                .map(h => [parseLocalDate(h.date), h.value])
+                .sort((a, b) => a[0] - b[0]);
+            const [peTs, peVals] = insertNullsForGaps(pePairs.map(p => p[0]), pePairs.map(p => p[1]));
+            chartsDrawn.push(drawMulti('chart-pe', peTs, [
+                { label:'Shiller PE', data: peVals,                             color:'#ff9800', width:1.5 },
+                { label:'+1σ',        data: new Array(peTs.length).fill(PE_WARN1), color:'#ff5722', dash:[5,5], width:1, spanGaps:true },
+                { label:'Mean',       data: new Array(peTs.length).fill(AI_MEAN),  color:'#4fc3f7', dash:[3,3], width:1, spanGaps:true },
+            ]));
+        }
+
+        // Copper
+        if (d.copper) {
+            const [copperTsSorted, copperClosesSorted] = sortChronologically(d.copper.timestamps, d.copper.closes);
+            const ma3raw = calcMA_full(copperClosesSorted, 3);
+            const [copperTs, copperCloses, ma3] = insertNullsForGaps(copperTsSorted, copperClosesSorted, ma3raw);
+            chartsDrawn.push(drawMulti('chart-copper', copperTs, [
+                { label:'Copper', data: copperCloses, color:'#cd7f32', width:1.5 },
+                { label:'MA3',    data: ma3,          color:'#ffeb3b', dash:[4,4], width:1 }
+            ]));
+        }
+
+        // VIX
+        if (d.vix && d.vix.closes && d.vix.closes.length > 1) {
+            const [vixTsSorted, vixClosesSorted] = sortChronologically(d.vix.timestamps, d.vix.closes);
+            const [vixTs, vixCloses] = insertNullsForGaps(vixTsSorted, vixClosesSorted);
+            chartsDrawn.push(drawMulti('chart-vix', vixTs, [
+                { label:'VIX', data: vixCloses,                          color:'#f44336', width:1.5 },
+                { label:'35',  data: new Array(vixTs.length).fill(35),   color:'#ff5722', dash:[5,5], width:1, spanGaps:true },
+                { label:'28',  data: new Array(vixTs.length).fill(28),   color:'#ff9800', dash:[3,3], width:1, spanGaps:true },
+                { label:'20',  data: new Array(vixTs.length).fill(20),   color:'#888',    dash:[3,3], width:1, spanGaps:true },
+            ]));
+        }
+
+        // HY OAS — normalize value from % to bp if needed (FRED gives %, chart expects bp)
+        if (d.hyOAS && d.hyOAS.history && d.hyOAS.history.length > 1) {
+            const hyPairs = d.hyOAS.history
+                .map(h => [parseLocalDate(h.date), h.value < 10 ? h.value * 100 : h.value])
+                .sort((a, b) => a[0] - b[0]);
+            const [hyTs, hyVals] = insertNullsForGaps(hyPairs.map(p => p[0]), hyPairs.map(p => p[1]));
+            chartsDrawn.push(drawMulti('chart-hyoas', hyTs, [
+                { label:'HY OAS', data: hyVals,                           color:'#ef5350', width:1.5 },
+                { label:'500bp',  data: new Array(hyTs.length).fill(500), color:'#ff9800', dash:[5,5], width:1, spanGaps:true },
+                { label:'300bp',  data: new Array(hyTs.length).fill(300), color:'#4caf50', dash:[3,3], width:1, spanGaps:true },
+            ]));
+        }
+
+        // Market Breadth (% stocks above 200MA)
+        if (d.breadth && d.breadth.history && d.breadth.history.length > 0) {
+            const brPairs = d.breadth.history
+                .map(h => [parseLocalDate(h.date), h.value])
+                .sort((a, b) => a[0] - b[0]);
+            const [brTs, brVals] = insertNullsForGaps(brPairs.map(p => p[0]), brPairs.map(p => p[1]));
+            chartsDrawn.push(drawMulti('chart-breadth', brTs, [
+                { label:'廣度%', data: brVals,                            color:'#26c6da', width:2 },
+                { label:'65%',   data: new Array(brTs.length).fill(65),  color:'#4caf50', dash:[5,5], width:1, spanGaps:true },
+                { label:'50%',   data: new Array(brTs.length).fill(50),  color:'#ff9800', dash:[3,3], width:1, spanGaps:true },
+            ], { timeUnit: 'day' }));
+        }
+
+        if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1) {
+            const [qqqTsSorted, qqqClosesSorted] = sortChronologically(d.qqq.timestamps, d.qqq.closes);
+            const [qqqTs, qqqCloses] = insertNullsForGaps(qqqTsSorted, qqqClosesSorted);
+            chartsDrawn.push(drawSingle('chart-qqq', qqqTs, qqqCloses, '#4fc3f7', 'QQQ'));
+        }
+        if (d.smh && d.smh.closes && d.smh.closes.length > 1) {
+            const [smhTsSorted, smhClosesSorted] = sortChronologically(d.smh.timestamps, d.smh.closes);
+            const [smhTs, smhCloses] = insertNullsForGaps(smhTsSorted, smhClosesSorted);
+            chartsDrawn.push(drawSingle('chart-smh', smhTs, smhCloses, '#ce93d8', 'SMH'));
+        }
+
+        // DXY with MA20
+        if (d.dxy) {
+            const [dxyTsSorted, dxyClosesSorted] = sortChronologically(d.dxy.timestamps, d.dxy.closes);
+            const ma20raw = calcMA_full(dxyClosesSorted, 20);
+            const [dxyTs, dxyCloses, ma20] = insertNullsForGaps(dxyTsSorted, dxyClosesSorted, ma20raw);
+            chartsDrawn.push(drawMulti('chart-dxy', dxyTs, [
+                { label:'DXY',  data: dxyCloses, color:'#81c784', width:1.5 },
+                { label:'MA20', data: ma20,      color:'#ffeb3b', dash:[4,4], width:1 }
+            ]));
+        }
+
+        // TNX with MA20
+        if (d.tnx) {
+            const [tnxTsSorted, tnxClosesSorted] = sortChronologically(d.tnx.timestamps, d.tnx.closes);
+            const ma20raw = calcMA_full(tnxClosesSorted, 20);
+            const [tnxTs, tnxCloses, ma20] = insertNullsForGaps(tnxTsSorted, tnxClosesSorted, ma20raw);
+            chartsDrawn.push(drawMulti('chart-tnx', tnxTs, [
+                { label:'10Y Yield', data: tnxCloses,                          color:'#ffd54f', width:1.5 },
+                { label:'MA20',      data: ma20,                               color:'#4fc3f7', dash:[4,4], width:1 },
+                { label:'4.5%',      data: new Array(tnxTs.length).fill(4.5), color:'#f44336', dash:[5,5], width:1, spanGaps:true },
+                { label:'3.5%',      data: new Array(tnxTs.length).fill(3.5), color:'#4caf50', dash:[5,5], width:1, spanGaps:true },
+            ]));
+        }
+    }
+
+    function drawSingle(id, timestamps, closes, color, label) {
+        return new Chart(document.getElementById(id), {
+            type:'line',
+            data:{ labels: timestamps.map(t=>new Date(t)), datasets:[{
+                label, data: closes, borderColor: color,
+                borderWidth:1.5, pointRadius:0, fill:false, spanGaps:false
+            }] },
+            options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
+                scales:{ x:{ type:'time', ticks:{maxTicksLimit:5}, grid:{color:'#1a2a3a'} }, y:{ grid:{color:'#1a2a3a'} } } }
+        });
+    }
+
+    function drawMulti(id, timestamps, datasets, opts) {
+        const ds = datasets.filter(d=>d.data).map(d => ({
+            label: d.label,
+            data: d.data,
+            borderColor: d.color,
+            borderWidth: d.width || 1.5,
+            borderDash: d.dash || [],
+            pointRadius: 0,
+            fill: false,
+            spanGaps: d.spanGaps !== undefined ? d.spanGaps : false
+        }));
+        const xScaleOpts = { type:'time', ticks:{maxTicksLimit:5}, grid:{color:'#1a2a3a'} };
+        if (opts && opts.timeUnit) xScaleOpts.time = { unit: opts.timeUnit };
+        return new Chart(document.getElementById(id), {
+            type:'line',
+            data:{ labels: timestamps.map(t=>new Date(t)), datasets: ds },
+            options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
+                scales:{ x: xScaleOpts, y:{ grid:{color:'#1a2a3a'} } } }
+        });
+    }
+
+    function updateAlloc() {
+        if (!gData) return;
+        const sc = computeScore();
+        renderAlloc(sc);
+    }
+
+    // ─── Init ───────────────────────────────────────────────────────────
+    async function init() {
+        const bar = document.getElementById('status-bar');
+        try {
+            let dataSource = 'live API';
+            let res;
+            try {
+                res = await fetch('/api/data?t=' + Date.now());
+                if (!res.ok) throw new Error('live api failed');
+                gData = await res.json();
+            } catch (_) {
+                dataSource = 'snapshot';
+                res = await fetch('./market-data-snapshot.json?t=' + Date.now());
+                if (!res.ok) throw new Error('無法載入 market-data-snapshot.json');
+                // Robust parse: handle both plain JSON and base64-encoded JSON
+                const rawSnap = await res.text();
+                try {
+                    gData = JSON.parse(rawSnap);
+                } catch (_b64) {
+                    gData = JSON.parse(atob(rawSnap.trim()));
+                }
+            }
+
+            bar.className = 'success';
+            const ts = gData.timestamp || gData.updatedAt || null;
+            let tsText;
+            try {
+                tsText = ts ? new Date(ts).toLocaleString('zh-TW') : new Date().toLocaleString('zh-TW');
+            } catch (_) {
+                tsText = ts ? new Date(ts).toLocaleString() : new Date().toLocaleString();
+            }
+            bar.innerText = dataSource === 'live API'
+                ? `✅ 數據同步完成（即時） ${tsText}`
+                : `✅ 數據已載入（快照） ${tsText}`;
+
+            const sc = computeScore();
+            const panic = checkPanic();
+
+            renderKPIs(sc);
+            renderDualAxis(sc);
+            renderAlloc(sc);
+            renderPanic(panic);
+
+            // Charts are non-critical — isolated try-catch so chart bugs never block KPI display
+            try {
+                renderCharts();
+            } catch (chartErr) {
+                console.warn('Chart rendering error (non-fatal):', chartErr);
+                bar.innerText += ' ⚠️ 部分圖表載入失敗';
+            }
+
+        } catch (e) {
+            bar.className = 'error';
+            bar.innerText = '❌ 系統錯誤: ' + e.message;
+            console.error(e);
+        }
+    }
+
+    init();
