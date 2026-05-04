@@ -166,6 +166,136 @@
         document.getElementById('k-mode').innerText = sc.k >= 1 ? '☀️ 晴天（全速）' : sc.k >= 0.8 ? '⛅ 輕雲（小幅保守）' : sc.k >= 0.6 ? '🌧 雨天（明顯保守）' : '⛈ 暴雨（最大防守）';
     }
 
+    // ─── Four-Quadrant Chart ──────────────────────────────────────────────
+    let quadrantChart = null;
+
+    function renderQuadrant(sc) {
+        const canvasEl = document.getElementById('chart-quadrant');
+        if (!canvasEl) return;
+
+        if (quadrantChart) { quadrantChart.destroy(); quadrantChart = null; }
+
+        const tX = sc.trendScore;      // 0–8
+        const sY = sc.sentimentScore;  // -3 to +9
+        const midX = 4;   // trend boundary
+        const midY = 3;   // sentiment boundary (≥3 = meaningful fear signal)
+
+        // Determine current quadrant label
+        const inAttack  = tX >= midX && sY >= midY;
+        const inWait    = tX <  midX && sY >= midY;
+        const inReduce  = tX >= midX && sY <  midY;
+        const inDefend  = tX <  midX && sY <  midY;
+        const quadLabel = inAttack ? '🚀 最佳進攻' : inWait ? '⏳ 謹慎等待' : inReduce ? '💰 開始減碼' : '🛡 最高防守';
+        const quadEl = document.getElementById('quadrant-label');
+        if (quadEl) {
+            quadEl.innerText = quadLabel;
+            quadEl.style.color = inAttack ? '#4caf50' : inWait ? '#4fc3f7' : inReduce ? '#ff9800' : '#f44336';
+        }
+
+        // Custom background plugin — draws colored quadrants and labels
+        const quadrantBgPlugin = {
+            id: 'quadrantBg',
+            beforeDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom }, scales } = chart;
+                const xMid = scales.x.getPixelForValue(midX);
+                const yMid = scales.y.getPixelForValue(midY);
+                ctx.save();
+                // Top-Left: 弱動能 + 恐慌 → 謹慎等待 (blue)
+                ctx.fillStyle = 'rgba(79,195,247,0.10)';
+                ctx.fillRect(left, top, xMid - left, yMid - top);
+                // Top-Right: 強動能 + 恐慌 → 最佳進攻 (green)
+                ctx.fillStyle = 'rgba(76,175,80,0.14)';
+                ctx.fillRect(xMid, top, right - xMid, yMid - top);
+                // Bottom-Left: 弱動能 + 貪婪 → 最高防守 (red)
+                ctx.fillStyle = 'rgba(244,67,54,0.10)';
+                ctx.fillRect(left, yMid, xMid - left, bottom - yMid);
+                // Bottom-Right: 強動能 + 貪婪 → 開始減碼 (orange)
+                ctx.fillStyle = 'rgba(255,152,0,0.10)';
+                ctx.fillRect(xMid, yMid, right - xMid, bottom - yMid);
+                ctx.restore();
+            },
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom }, scales } = chart;
+                const xMid = scales.x.getPixelForValue(midX);
+                const yMid = scales.y.getPixelForValue(midY);
+                ctx.save();
+                ctx.textBaseline = 'middle';
+
+                const quads = [
+                    { x: (left + xMid) / 2,  y: top + (yMid - top) * 0.35,  title: '⏳ 謹慎等待', sub: '弱動能 + 恐慌',  color: 'rgba(79,195,247,0.85)'  },
+                    { x: (xMid + right) / 2, y: top + (yMid - top) * 0.35,  title: '🚀 最佳進攻', sub: '強動能 + 恐慌',  color: 'rgba(76,175,80,0.90)'   },
+                    { x: (left + xMid) / 2,  y: yMid + (bottom - yMid) * 0.55, title: '🛡 最高防守', sub: '弱動能 + 貪婪',  color: 'rgba(244,67,54,0.80)'   },
+                    { x: (xMid + right) / 2, y: yMid + (bottom - yMid) * 0.55, title: '💰 開始減碼', sub: '強動能 + 貪婪',  color: 'rgba(255,152,0,0.85)'   },
+                ];
+
+                quads.forEach(q => {
+                    ctx.textAlign = 'center';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillStyle = q.color;
+                    ctx.fillText(q.title, q.x, q.y);
+                    ctx.font = '10px sans-serif';
+                    ctx.fillStyle = 'rgba(180,180,180,0.75)';
+                    ctx.fillText(q.sub, q.x, q.y + 16);
+                });
+
+                // Cross-hair lines at midpoints
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                ctx.setLineDash([4, 4]);
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(xMid, top); ctx.lineTo(xMid, bottom); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(left, yMid); ctx.lineTo(right, yMid); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+        };
+
+        // Dot color based on quadrant
+        const dotColor = inAttack ? '#4caf50' : inWait ? '#4fc3f7' : inReduce ? '#ff9800' : '#f44336';
+
+        quadrantChart = new Chart(canvasEl, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: '當前市場位置',
+                    data: [{ x: tX, y: sY }],
+                    backgroundColor: dotColor,
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    pointRadius: 10,
+                    pointHoverRadius: 13,
+                    pointStyle: 'circle'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: () => `趨勢 ${tX.toFixed(1)}/8　情緒 ${sY >= 0 ? '+' : ''}${sY}/9`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: '← 防守　趨勢軸（動能）　進攻 →', color: '#4fc3f7', font: { size: 10 } },
+                        min: 0, max: 8,
+                        grid: { color: 'rgba(26,42,58,0.8)' },
+                        ticks: { color: '#666', stepSize: 2 }
+                    },
+                    y: {
+                        title: { display: true, text: '← 貪婪　情緒軸（逆向）　恐慌 →', color: '#ff9800', font: { size: 10 } },
+                        min: -3, max: 9,
+                        grid: { color: 'rgba(26,42,58,0.8)' },
+                        ticks: { color: '#666', stepSize: 3 }
+                    }
+                }
+            },
+            plugins: [quadrantBgPlugin]
+        });
+    }
+
     function renderAlloc(sc) {
         const fund = parseFloat(document.getElementById('fund-input').value) || 0;
         const alloc = getAllocation(sc.trendScore, sc.sentimentScore, sc.pe);
