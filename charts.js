@@ -241,6 +241,7 @@
             renderDualAxis(sc);
             renderAlloc(sc);
             renderPanic(panic);
+            renderQuadrant(sc);
 
             // Charts are non-critical — isolated try-catch so chart bugs never block KPI display
             try {
