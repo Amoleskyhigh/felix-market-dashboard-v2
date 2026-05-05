@@ -211,7 +211,9 @@
                 gData = await res.json();
             } catch (_) {
                 dataSource = 'snapshot';
-                res = await fetch('./market-data-snapshot.json?t=' + Date.now());
+                // Use raw.githubusercontent.com to bypass GitHub Pages CDN (Fastly ignores query params)
+                const SNAPSHOT_RAW = 'https://raw.githubusercontent.com/Amoleskyhigh/felix-market-dashboard-v2/main/market-data-snapshot.json';
+                res = await fetch(SNAPSHOT_RAW + '?t=' + Date.now());
                 if (!res.ok) throw new Error('無法載入 market-data-snapshot.json');
                 // Robust parse: handle both plain JSON and base64-encoded JSON
                 const rawSnap = await res.text();
