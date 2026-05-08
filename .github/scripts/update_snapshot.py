@@ -322,6 +322,47 @@ def main():
     else:
         log("WARN copper: no data from yfinance, keeping existing snapshot values")
 
+    # ── 2c. USD/TWD via yfinance ────────────────────────────────────────────────
+    log("yfinance TWD=X (USD/TWD) …")
+    if HAS_YF:
+        try:
+            twd_ticker = yf.Ticker("TWD=X")
+            twd_info = twd_ticker.fast_info
+            twd_current = getattr(twd_info, "last_price", None)
+            if twd_current is None or twd_current == 0:
+                twd_current = getattr(twd_info, "previous_close", None)
+
+            twd_hist = twd_ticker.history(period="6mo", interval="1d", auto_adjust=True)
+            twd_series = []
+            if not twd_hist.empty:
+                for dt_idx, row in twd_hist.iterrows():
+                    ts_ms = int(dt_idx.timestamp() * 1000)
+                    close = float(row["Close"])
+                    if close > 0:
+                        twd_series.append((ts_ms, close))
+                twd_series.sort(key=lambda x: x[0], reverse=True)
+                twd_series = twd_series[:100]
+
+            if twd_series:
+                set_series(snap, "twd", twd_series, 100)
+                if "twd" not in snap:
+                    snap["twd"] = {}
+                snap["twd"]["currentPrice"] = twd_current if twd_current else twd_series[0][1]
+                log(f"yfinance TWD=X OK: current={twd_current}, {len(twd_series)} bars")
+            elif twd_current is not None:
+                prepend_price(snap, "twd", twd_current, now_ms, max_bars=100)
+                if "twd" not in snap:
+                    snap["twd"] = {}
+                snap["twd"]["currentPrice"] = twd_current
+                log(f"yfinance TWD=X OK (price only): {twd_current}")
+            else:
+                log("WARN TWD=X: no data from yfinance, keeping existing")
+        except Exception as e:
+            log(f"WARN yfinance TWD=X: {e}")
+            import traceback; traceback.print_exc()
+    else:
+        log("WARN yfinance not installed, skipping USD/TWD")
+
     # ── 3. FRED ──────────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) …")
     hy_rows = fred_series("BAMLH0A0HYM2")
