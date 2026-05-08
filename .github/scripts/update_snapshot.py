@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 update_snapshot.py
-Fetch fresh market data from Alpha Vantage, FRED, and CNN Fear & Greed,
+Fetch fresh market data from Alpha Vantage, FRED, CNN Fear & Greed, and yfinance,
 then write the updated market-data-snapshot.json in-place.
 
 Data sources:
-  - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, VIX, TNX, DXY, Copper, SPX, IXIC
-  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/TNX/DXY/Copper(100 each)
+  - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, VIX, TNX, DXY, SPX, IXIC
+  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/TNX/DXY(100 each)
+  - yfinance                    : HG=F (Copper futures) — AV does not support this
   - FRED CSV                    : BAMLH0A0HYM2 (HY OAS), CAPE (Shiller PE)
   - CNN Fear & Greed            : score, rating, history
 """
@@ -19,6 +20,12 @@ import time
 import datetime
 import traceback
 import requests
+
+try:
+    import yfinance as yf
+    HAS_YF = True
+except ImportError:
+    HAS_YF = False
 
 # ── Config ───────────────────────────────────────────────────────────────────────
 
@@ -83,6 +90,53 @@ def av_time_series(symbol, outputsize="compact"):
     except Exception as e:
         log(f"WARN TIME_SERIES({symbol}): {e}")
         return []
+
+
+# ── yfinance (Copper) ─────────────────────────────────────────────────────────────
+
+def yfinance_copper(max_bars=100):
+    """
+    Fetch copper futures (HG=F) via yfinance.
+    Returns (current_price: float|None, series: [(ts_ms, close), ...] newest-first).
+    Alpha Vantage does not support commodity futures; yfinance does.
+    """
+    if not HAS_YF:
+        log("WARN yfinance not installed, skipping copper")
+        return None, []
+    try:
+        ticker = yf.Ticker("HG=F")
+
+        # Current price
+        info = ticker.fast_info
+        current = getattr(info, "last_price", None)
+        if current is None or current == 0:
+            current = getattr(info, "previous_close", None)
+
+        # Historical daily closes — 6 months
+        hist = ticker.history(period="6mo", interval="1d", auto_adjust=True)
+        if hist.empty:
+            log("WARN yfinance copper: empty history")
+            return current, []
+
+        series = []
+        for dt_idx, row in hist.iterrows():
+            ts_ms = int(dt_idx.timestamp() * 1000)
+            close = float(row["Close"])
+            if close > 0:
+                series.append((ts_ms, close))
+
+        series.sort(key=lambda x: x[0], reverse=True)  # newest-first
+        series = series[:max_bars]
+
+        if current is None and series:
+            current = series[0][1]
+
+        log(f"yfinance copper OK: current={current}, {len(series)} bars")
+        return current, series
+    except Exception as e:
+        log(f"WARN yfinance copper: {e}")
+        traceback.print_exc()
+        return None, []
 
 
 # ── FRED ─────────────────────────────────────────────────────────────────────────
@@ -196,6 +250,7 @@ def main():
     today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
     # ── 1. GLOBAL_QUOTE ──────────────────────────────────────────────────────────
+    # Note: HG=F (copper) removed — Alpha Vantage does not support commodity futures
     GQ_SYMBOLS = [
         ("SPY",      "spy",    True),
         ("QQQ",      "qqq",    True),
@@ -203,7 +258,6 @@ def main():
         ("^VIX",     "vix",    False),   # no previousClose in snapshot
         ("^TNX",     "tnx",    False),
         ("DX-Y.NYB", "dxy",    False),
-        ("HG=F",     "copper", False),
         ("^GSPC",    "spx",    True),
         ("^IXIC",    "ixic",   True),
     ]
@@ -221,13 +275,13 @@ def main():
         time.sleep(RATE_SLEEP)
 
     # ── 2. TIME_SERIES_DAILY ─────────────────────────────────────────────────────
+    # Note: HG=F (copper) removed — fetched via yfinance in section 2b below
     TS_SYMBOLS = [
         ("SPY",      "spy",    250, "full"),
         ("QQQ",      "qqq",    100, "compact"),
         ("SMH",      "smh",    100, "compact"),
         ("^TNX",     "tnx",    100, "compact"),
         ("DX-Y.NYB", "dxy",    100, "compact"),
-        ("HG=F",     "copper", 100, "compact"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
         log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) …")
@@ -249,6 +303,24 @@ def main():
     for key in ("vix", "spx", "ixic"):
         price = gq_cache.get(key, (None, None))[0]
         prepend_price(snap, key, price, now_ms)
+
+    # ── 2b. COPPER via yfinance ──────────────────────────────────────────────────
+    log("yfinance HG=F (Copper) …")
+    copper_price, copper_series = yfinance_copper(max_bars=100)
+    if copper_series:
+        # Full history available — replace closes/timestamps cleanly
+        set_series(snap, "copper", copper_series, 100)
+        if "copper" not in snap:
+            snap["copper"] = {}
+        snap["copper"]["currentPrice"] = copper_price if copper_price else copper_series[0][1]
+    elif copper_price is not None:
+        # No history but have current price — prepend to existing
+        prepend_price(snap, "copper", copper_price, now_ms, max_bars=100)
+        if "copper" not in snap:
+            snap["copper"] = {}
+        snap["copper"]["currentPrice"] = copper_price
+    else:
+        log("WARN copper: no data from yfinance, keeping existing snapshot values")
 
     # ── 3. FRED ──────────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) …")
