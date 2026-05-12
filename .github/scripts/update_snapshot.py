@@ -180,7 +180,7 @@ def fetch_multpl_cape():
             headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
         )
         r.raise_for_status()
-        match = re.search(r'id="current-value"[^>]*>\s*([\d.]+)', r.text)
+        match = re.search(r'id="current"[^>]*>[\s\S]*?</b>\s*([\d.]+)', r.text)
         if match:
             val = float(match.group(1))
             log(f"multpl.com CAPE OK: {val}")
