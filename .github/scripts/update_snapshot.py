@@ -27,7 +27,7 @@ try:
 except ImportError:
     HAS_YF = False
 
-# ── Config ───────────────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────────────────
 
 AV_KEY   = os.environ.get("AV_KEY", "G82DB8ZUK7E0FBKV")
 SNAPSHOT = "market-data-snapshot.json"
@@ -38,7 +38,7 @@ CNN_URL  = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
 # Alpha Vantage free tier: 5 requests/min, 25/day → sleep 15s between calls
 RATE_SLEEP = 15
 
-# ── Utilities ────────────────────────────────────────────────────────────────────
+# ── Utilities ────────────────────────────────────────────────────────────────────────────
 
 def log(msg):
     ts = datetime.datetime.utcnow().strftime("%H:%M:%S")
@@ -52,7 +52,7 @@ def date_to_ms(date_str):
     return int(dt.timestamp() * 1000)
 
 
-# ── Alpha Vantage ────────────────────────────────────────────────────────────────
+# ── Alpha Vantage ───────────────────────────────────────────────────────────────────────
 
 def av_global_quote(symbol):
     """Return (price: float|None, prev_close: float|None)."""
@@ -92,7 +92,7 @@ def av_time_series(symbol, outputsize="compact"):
         return []
 
 
-# ── yfinance (Copper) ─────────────────────────────────────────────────────────────
+# ── yfinance (Copper) ───────────────────────────────────────────────────────────────────
 
 def yfinance_copper(max_bars=100):
     """
@@ -139,7 +139,7 @@ def yfinance_copper(max_bars=100):
         return None, []
 
 
-# ── FRED ─────────────────────────────────────────────────────────────────────────
+# ── FRED ──────────────────────────────────────────────────────────────────────────────────
 
 def fred_series(series_id):
     """
@@ -167,15 +167,15 @@ def fred_series(series_id):
         return []
 
 
-# ── CNN Fear & Greed ─────────────────────────────────────────────────────────────
+# ── CNN Fear & Greed ───────────────────────────────────────────────────────────────────
 
 
 def fetch_multpl_cape():
-    """Fetch Shiller CAPE from multpl.com (daily updated). Returns (current_val, history_list)."""
+    """Fetch Shiller CAPE (current + monthly history) from multpl.com."""
     import re
-    current_val = None
-    history = []
+    result = {"current": None, "history": {}}
     try:
+        # --- Current value ---
         r = requests.get(
             "https://www.multpl.com/shiller-pe",
             timeout=20,
@@ -184,34 +184,44 @@ def fetch_multpl_cape():
         r.raise_for_status()
         match = re.search(r'id="current"[^>]*>[\s\S]*?</b>\s*([\d.]+)', r.text)
         if match:
-            current_val = float(match.group(1))
+            result["current"] = float(match.group(1))
+            log(f"multpl.com CAPE current OK: {result['current']}")
         else:
             log("WARN multpl.com CAPE: could not parse current value")
     except Exception as e:
-        log(f"WARN multpl.com CAPE (current): {e}")
+        log(f"WARN multpl.com CAPE current: {e}")
 
     try:
+        # --- Monthly history ---
         r2 = requests.get(
             "https://www.multpl.com/shiller-pe/table/by-month",
-            timeout=30,
+            timeout=20,
             headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
         )
         r2.raise_for_status()
+        # Parse table rows: <td>Jan 1, 2026</td><td>42.08</td>
         rows = re.findall(
-            r'<td[^>]*>\s*([A-Za-z]+ \d+,\s*\d{4})\s*</td>\s*<td[^>]*>\s*([\d.]+)\s*</td>',
-            r2.text)
-        import datetime as _dt
+            r'<td[^>]*>\s*(\w+ \d+,\s*\d{4})\s*</td>\s*<td[^>]*>\s*([\d.]+)\s*</td>',
+            r2.text
+        )
+        from datetime import datetime
+        hist = {}
         for date_str, val_str in rows:
             try:
-                dt = _dt.datetime.strptime(date_str.strip(), "%b %d, %Y")
-                history.append({"date": dt.strftime("%Y-%m-%d"), "value": float(val_str)})
+                dt = datetime.strptime(date_str.strip(), "%b %d, %Y")
+                key = dt.strftime("%Y-%m")
+                hist[key] = float(val_str)
             except Exception:
-                pass
-        log(f"multpl.com CAPE OK: current={current_val}, {len(history)} history rows")
+                continue
+        if hist:
+            log(f"multpl.com CAPE history OK: {len(hist)} months")
+            result["history"] = hist
+        else:
+            log("WARN multpl.com CAPE: could not parse history table")
     except Exception as e:
-        log(f"WARN multpl.com CAPE (history): {e}")
+        log(f"WARN multpl.com CAPE history: {e}")
 
-    return current_val, history
+    return result
 
 def fetch_cnn():
     """Return (score: int|None, rating: str|None, history: list) newest-first."""
@@ -237,7 +247,7 @@ def fetch_cnn():
         return None, None, []
 
 
-# ── Snapshot helpers ─────────────────────────────────────────────────────────────
+# ── Snapshot helpers ──────────────────────────────────────────────────────────────────────
 
 def set_series(snap, key, series, max_bars):
     """Replace closes/timestamps in snap[key] with TIME_SERIES_DAILY data."""
@@ -267,7 +277,7 @@ def prepend_price(snap, key, price, now_ms, max_bars=None):
     snap[key]["timestamps"] = tss
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────────────────────
 
 def main():
     # Load snapshot (with defensive fallback for accidental base64 encoding)
@@ -293,7 +303,7 @@ def main():
                     tzinfo=datetime.timezone.utc).timestamp() * 1000)
     today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-    # ── 1. GLOBAL_QUOTE ──────────────────────────────────────────────────────────
+    # ── 1. GLOBAL_QUOTE ────────────────────────────────────────────────────────────────
     # Note: HG=F (copper) removed — Alpha Vantage does not support commodity futures
     GQ_SYMBOLS = [
         ("SPY",      "spy",    True),
@@ -318,7 +328,7 @@ def main():
                 snap[key]["previousClose"] = prev
         time.sleep(RATE_SLEEP)
 
-    # ── 2. TIME_SERIES_DAILY ─────────────────────────────────────────────────────
+    # ── 2. TIME_SERIES_DAILY ────────────────────────────────────────────────────────────────
     # Note: HG=F (copper) removed — fetched via yfinance in section 2b below
     TS_SYMBOLS = [
         ("SPY",      "spy",    250, "full"),
@@ -348,7 +358,7 @@ def main():
         price = gq_cache.get(key, (None, None))[0]
         prepend_price(snap, key, price, now_ms)
 
-    # ── 2b. COPPER via yfinance ──────────────────────────────────────────────────
+    # ── 2b. COPPER via yfinance ──────────────────────────────────────────────────────────────
     log("yfinance HG=F (Copper) …")
     copper_price, copper_series = yfinance_copper(max_bars=100)
     if copper_series:
@@ -366,7 +376,7 @@ def main():
     else:
         log("WARN copper: no data from yfinance, keeping existing snapshot values")
 
-    # ── 2c. USD/TWD via yfinance ────────────────────────────────────────────────
+    # ── 2c. USD/TWD via yfinance ─────────────────────────────────────────────────────────────
     log("yfinance TWD=X (USD/TWD) …")
     if HAS_YF:
         try:
@@ -407,7 +417,7 @@ def main():
     else:
         log("WARN yfinance not installed, skipping USD/TWD")
 
-    # ── 3. FRED ──────────────────────────────────────────────────────────────────
+    # ── 3. FRED ────────────────────────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) …")
     hy_rows = fred_series("BAMLH0A0HYM2")
     if hy_rows:
@@ -423,28 +433,15 @@ def main():
                 + snap["hyOAS"].get("history", []))
 
     log("Shiller CAPE (multpl.com, daily) …")
-    cape_val, cape_history = fetch_multpl_cape()
-    if cape_val is not None:
-        if "shiller" not in snap:
-            snap["shiller"] = {"current": cape_val, "history": []}
-        snap["shiller"]["current"] = cape_val
-        # Merge full history from multpl.com table
-        if cape_history:
-            existing_dates = {h["date"] for h in snap["shiller"].get("history", [])}
-            new_h = [h for h in cape_history if h["date"] not in existing_dates]
-            if new_h:
-                snap["shiller"]["history"] = snap["shiller"].get("history", []) + new_h
-                snap["shiller"]["history"].sort(key=lambda x: x["date"], reverse=True)
-                log(f"Added {len(new_h)} new Shiller PE history entries")
-        existing = {h["date"] for h in snap["shiller"].get("history", [])}
-        if today_str not in existing:
-            snap["shiller"]["history"] = (
-                [{"date": today_str, "value": cape_val}]
-                + snap["shiller"].get("history", []))
-    else:
-        log("WARN: multpl.com CAPE failed, Shiller PE not updated")
+    cape_data = fetch_multpl_cape()
+    snap["shiller"]["current"] = cape_data.get("current")
+    new_hist = cape_data.get("history", {})
+    if new_hist:
+        existing = snap["shiller"].get("history", {})
+        existing.update(new_hist)
+        snap["shiller"]["history"] = existing
 
-    # ── 4. CNN Fear & Greed ──────────────────────────────────────────────────────
+    # ── 4. CNN Fear & Greed ────────────────────────────────────────────────────────────────
     log("CNN Fear & Greed …")
     score, rating, fng_hist = fetch_cnn()
     if score is not None:
@@ -459,7 +456,7 @@ def main():
             snap["fearGreed"]["history"] = (
                 new_entries + snap["fearGreed"].get("history", []))
 
-    # ── 5. Finalize & write ──────────────────────────────────────────────────────
+    # ── 5. Finalize & write ────────────────────────────────────────────────────────────────
     snap["timestamp"] = now_ms
     with open(SNAPSHOT, "w") as f:
         json.dump(snap, f, separators=(",", ":"))

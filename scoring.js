@@ -7,7 +7,7 @@
     let gData = null;
     let chartsDrawn = [];
 
-    // ─── Utility ──────────────────────────────────────────────────────────
+    // ─── Utility ─────────────────────────────────────────────────────
     function calcMA(closes, period) {
         if (!closes || closes.length < period) return closes ? closes[closes.length-1] : null;
         return closes.slice(-period).reduce((a,b) => a+b, 0) / period;
@@ -20,7 +20,7 @@
     // Normalize HY OAS: FRED returns %, scoring/display expects bp (e.g. 2.86 → 286)
     function normHyOAS(v) { return v !== null && v < 10 ? Math.round(v * 100) : v; }
 
-    // ─── Dual-Axis Scoring ────────────────────────────────────────────────
+    // ─── Dual-Axis Scoring ──────────────────────────────────────────
     function computeScore() {
         const d = gData;
         const vix      = d.vix?.currentPrice ?? 20;
@@ -113,12 +113,21 @@
         return { cashPct, qqqPct, smhPct, boxxPct, qldPct, peNote, equityPct: equityPctRound };
     }
 
-    // ─── Panic trigger (3 core + 1 supplementary) ────────────────────────
+    // ─── Panic trigger (3 core + 1 supplementary) ────────────────────
     function checkPanic() {
         const d = gData;
         const vix       = d.vix?.currentPrice ?? 20;
         const fg        = d.fearGreed?.score ?? 50;
-        const weeklyRet = d.spy?.weeklyReturn ?? d.spx?.weeklyReturn ?? 0;
+        // Compute SPY weekly return from closes array (last 5 trading days)
+        let weeklyRet = 0;
+        if (d.spy?.closes?.length >= 6) {
+            const closes = d.spy.closes;
+            const latest = closes[closes.length - 1];
+            const fiveBack = closes[closes.length - 6];
+            if (fiveBack && fiveBack > 0) {
+                weeklyRet = (latest - fiveBack) / fiveBack * 100;
+            }
+        }
         const hyOAS     = normHyOAS(d.hyOAS?.current ?? null);
 
         const c1 = weeklyRet <= -7;
