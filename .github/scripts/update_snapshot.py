@@ -169,6 +169,27 @@ def fred_series(series_id):
 
 # ── CNN Fear & Greed ─────────────────────────────────────────────────────────────
 
+
+def fetch_multpl_cape():
+    """Fetch Shiller CAPE from multpl.com (daily updated, vs FRED monthly)."""
+    try:
+        r = requests.get(
+            "https://www.multpl.com/shiller-pe",
+            timeout=20,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
+        )
+        r.raise_for_status()
+        match = re.search(r'id="current-value"[^>]*>\s*([\d.]+)', r.text)
+        if match:
+            val = float(match.group(1))
+            log(f"multpl.com CAPE OK: {val}")
+            return val
+        log("WARN multpl.com CAPE: could not parse value")
+        return None
+    except Exception as e:
+        log(f"WARN multpl.com CAPE: {e}")
+        return None
+
 def fetch_cnn():
     """Return (score: int|None, rating: str|None, history: list) newest-first."""
     try:
@@ -378,17 +399,20 @@ def main():
                 [{"date": today_str, "value": hy_bp}]
                 + snap["hyOAS"].get("history", []))
 
-    log("FRED CAPE (Shiller PE) …")
-    cape_rows = fred_series("CAPE")
-    if cape_rows:
-        latest_cape = cape_rows[-1]
+    log("Shiller CAPE (multpl.com, daily) …")
+    cape_val = fetch_multpl_cape()
+    if cape_val is None:
+        log("multpl.com failed, falling back to FRED CAPE …")
+        cape_rows = fred_series("CAPE")
+        cape_val = cape_rows[-1]["value"] if cape_rows else None
+    if cape_val is not None:
         if "shiller" not in snap:
-            snap["shiller"] = {"current": latest_cape["value"], "history": []}
-        snap["shiller"]["current"] = latest_cape["value"]
+            snap["shiller"] = {"current": cape_val, "history": []}
+        snap["shiller"]["current"] = cape_val
         existing = {h["date"] for h in snap["shiller"].get("history", [])}
-        if latest_cape["date"] not in existing:
+        if today_str not in existing:
             snap["shiller"]["history"] = (
-                [{"date": latest_cape["date"], "value": latest_cape["value"]}]
+                [{"date": today_str, "value": cape_val}]
                 + snap["shiller"].get("history", []))
 
     # ── 4. CNN Fear & Greed ──────────────────────────────────────────────────────
