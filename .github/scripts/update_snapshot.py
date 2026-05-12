@@ -172,6 +172,7 @@ def fred_series(series_id):
 
 def fetch_multpl_cape():
     """Fetch Shiller CAPE from multpl.com (daily updated, vs FRED monthly)."""
+    import re
     try:
         r = requests.get(
             "https://www.multpl.com/shiller-pe",
