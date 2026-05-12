@@ -171,8 +171,10 @@ def fred_series(series_id):
 
 
 def fetch_multpl_cape():
-    """Fetch Shiller CAPE from multpl.com (daily updated, vs FRED monthly)."""
+    """Fetch Shiller CAPE from multpl.com (daily updated). Returns (current_val, history_list)."""
     import re
+    current_val = None
+    history = []
     try:
         r = requests.get(
             "https://www.multpl.com/shiller-pe",
@@ -182,14 +184,34 @@ def fetch_multpl_cape():
         r.raise_for_status()
         match = re.search(r'id="current"[^>]*>[\s\S]*?</b>\s*([\d.]+)', r.text)
         if match:
-            val = float(match.group(1))
-            log(f"multpl.com CAPE OK: {val}")
-            return val
-        log("WARN multpl.com CAPE: could not parse value")
-        return None
+            current_val = float(match.group(1))
+        else:
+            log("WARN multpl.com CAPE: could not parse current value")
     except Exception as e:
-        log(f"WARN multpl.com CAPE: {e}")
-        return None
+        log(f"WARN multpl.com CAPE (current): {e}")
+
+    try:
+        r2 = requests.get(
+            "https://www.multpl.com/shiller-pe/table/by-month",
+            timeout=30,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
+        )
+        r2.raise_for_status()
+        rows = re.findall(
+            r'<td[^>]*>\s*([A-Za-z]+ \d+,\s*\d{4})\s*</td>\s*<td[^>]*>\s*([\d.]+)\s*</td>',
+            r2.text)
+        import datetime as _dt
+        for date_str, val_str in rows:
+            try:
+                dt = _dt.datetime.strptime(date_str.strip(), "%b %d, %Y")
+                history.append({"date": dt.strftime("%Y-%m-%d"), "value": float(val_str)})
+            except Exception:
+                pass
+        log(f"multpl.com CAPE OK: current={current_val}, {len(history)} history rows")
+    except Exception as e:
+        log(f"WARN multpl.com CAPE (history): {e}")
+
+    return current_val, history
 
 def fetch_cnn():
     """Return (score: int|None, rating: str|None, history: list) newest-first."""
@@ -302,8 +324,8 @@ def main():
         ("SPY",      "spy",    250, "full"),
         ("QQQ",      "qqq",    100, "compact"),
         ("SMH",      "smh",    100, "compact"),
-        ("^TNX",     "tnx",    100, "compact"),
-        ("DX-Y.NYB", "dxy",    100, "compact"),
+        ("^TNX",     "tnx",    252, "full"),
+        ("DX-Y.NYB", "dxy",    252, "full"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
         log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) …")
@@ -401,20 +423,26 @@ def main():
                 + snap["hyOAS"].get("history", []))
 
     log("Shiller CAPE (multpl.com, daily) …")
-    cape_val = fetch_multpl_cape()
-    if cape_val is None:
-        log("multpl.com failed, falling back to FRED CAPE …")
-        cape_rows = fred_series("CAPE")
-        cape_val = cape_rows[-1]["value"] if cape_rows else None
+    cape_val, cape_history = fetch_multpl_cape()
     if cape_val is not None:
         if "shiller" not in snap:
             snap["shiller"] = {"current": cape_val, "history": []}
         snap["shiller"]["current"] = cape_val
+        # Merge full history from multpl.com table
+        if cape_history:
+            existing_dates = {h["date"] for h in snap["shiller"].get("history", [])}
+            new_h = [h for h in cape_history if h["date"] not in existing_dates]
+            if new_h:
+                snap["shiller"]["history"] = snap["shiller"].get("history", []) + new_h
+                snap["shiller"]["history"].sort(key=lambda x: x["date"], reverse=True)
+                log(f"Added {len(new_h)} new Shiller PE history entries")
         existing = {h["date"] for h in snap["shiller"].get("history", [])}
         if today_str not in existing:
             snap["shiller"]["history"] = (
                 [{"date": today_str, "value": cape_val}]
                 + snap["shiller"].get("history", []))
+    else:
+        log("WARN: multpl.com CAPE failed, Shiller PE not updated")
 
     # ── 4. CNN Fear & Greed ──────────────────────────────────────────────────────
     log("CNN Fear & Greed …")
