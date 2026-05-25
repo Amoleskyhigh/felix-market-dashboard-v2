@@ -6,8 +6,8 @@ then write the updated market-data-snapshot.json in-place.
 
 Data sources:
   - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, VIX, TNX, DXY, SPX, IXIC
-  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/TNX/DXY(100 each)
-  - yfinance                    : HG=F (Copper futures) — AV does not support this
+  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/TNX(100 each)
+  - yfinance                    : HG=F (Copper), DX-Y.NYB (DXY) — AV has incomplete DXY history
   - FRED CSV                    : BAMLH0A0HYM2 (HY OAS), CAPE (Shiller PE)
   - CNN Fear & Greed            : score, rating, history
 """
@@ -92,30 +92,27 @@ def av_time_series(symbol, outputsize="compact"):
         return []
 
 
-# ── yfinance (Copper) ───────────────────────────────────────────────────────────────────
+# ── yfinance helpers ───────────────────────────────────────────────────────────────────
 
-def yfinance_copper(max_bars=100):
+def yfinance_ticker(yf_symbol, period="1y", max_bars=252, label=None):
     """
-    Fetch copper futures (HG=F) via yfinance.
+    Generic yfinance daily history fetcher.
     Returns (current_price: float|None, series: [(ts_ms, close), ...] newest-first).
-    Alpha Vantage does not support commodity futures; yfinance does.
     """
+    label = label or yf_symbol
     if not HAS_YF:
-        log("WARN yfinance not installed, skipping copper")
+        log(f"WARN yfinance not installed, skipping {label}")
         return None, []
     try:
-        ticker = yf.Ticker("HG=F")
-
-        # Current price
+        ticker = yf.Ticker(yf_symbol)
         info = ticker.fast_info
         current = getattr(info, "last_price", None)
         if current is None or current == 0:
             current = getattr(info, "previous_close", None)
 
-        # Historical daily closes — 6 months
-        hist = ticker.history(period="6mo", interval="1d", auto_adjust=True)
+        hist = ticker.history(period=period, interval="1d", auto_adjust=True)
         if hist.empty:
-            log("WARN yfinance copper: empty history")
+            log(f"WARN yfinance {label}: empty history")
             return current, []
 
         series = []
@@ -131,12 +128,25 @@ def yfinance_copper(max_bars=100):
         if current is None and series:
             current = series[0][1]
 
-        log(f"yfinance copper OK: current={current}, {len(series)} bars")
+        log(f"yfinance {label} OK: current={current}, {len(series)} bars")
         return current, series
     except Exception as e:
-        log(f"WARN yfinance copper: {e}")
+        log(f"WARN yfinance {label}: {e}")
         traceback.print_exc()
         return None, []
+
+
+def yfinance_copper(max_bars=100):
+    """Fetch copper futures (HG=F) via yfinance."""
+    return yfinance_ticker("HG=F", period="6mo", max_bars=max_bars, label="copper HG=F")
+
+
+def yfinance_dxy(max_bars=252):
+    """
+    Fetch DXY (US Dollar Index) via yfinance.
+    AV's DX-Y.NYB history is unreliable/incomplete; yfinance gives clean 1-2yr daily data.
+    """
+    return yfinance_ticker("DX-Y.NYB", period="2y", max_bars=max_bars, label="DXY DX-Y.NYB")
 
 
 # ── FRED ──────────────────────────────────────────────────────────────────────────────────
@@ -250,7 +260,7 @@ def fetch_cnn():
 # ── Snapshot helpers ──────────────────────────────────────────────────────────────────────
 
 def set_series(snap, key, series, max_bars):
-    """Replace closes/timestamps in snap[key] with TIME_SERIES_DAILY data."""
+    """Replace closes/timestamps in snap[key] with time series data."""
     if not series:
         return
     subset = series[:max_bars]
@@ -328,14 +338,13 @@ def main():
                 snap[key]["previousClose"] = prev
         time.sleep(RATE_SLEEP)
 
-    # ── 2. TIME_SERIES_DAILY ────────────────────────────────────────────────────────────────
-    # Note: HG=F (copper) removed — fetched via yfinance in section 2b below
+    # ── 2. TIME_SERIES_DAILY (Alpha Vantage) ────────────────────────────────────────────
+    # DXY removed from here — now fetched via yfinance (more reliable history)
     TS_SYMBOLS = [
-        ("SPY",      "spy",    250, "full"),
-        ("QQQ",      "qqq",    100, "compact"),
-        ("SMH",      "smh",    100, "compact"),
-        ("^TNX",     "tnx",    252, "full"),
-        ("DX-Y.NYB", "dxy",    252, "full"),
+        ("SPY",  "spy",  250, "full"),
+        ("QQQ",  "qqq",  100, "compact"),
+        ("SMH",  "smh",  100, "compact"),
+        ("^TNX", "tnx",  252, "full"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
         log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) …")
@@ -362,13 +371,11 @@ def main():
     log("yfinance HG=F (Copper) …")
     copper_price, copper_series = yfinance_copper(max_bars=100)
     if copper_series:
-        # Full history available — replace closes/timestamps cleanly
         set_series(snap, "copper", copper_series, 100)
         if "copper" not in snap:
             snap["copper"] = {}
         snap["copper"]["currentPrice"] = copper_price if copper_price else copper_series[0][1]
     elif copper_price is not None:
-        # No history but have current price — prepend to existing
         prepend_price(snap, "copper", copper_price, now_ms, max_bars=100)
         if "copper" not in snap:
             snap["copper"] = {}
@@ -376,7 +383,30 @@ def main():
     else:
         log("WARN copper: no data from yfinance, keeping existing snapshot values")
 
-    # ── 2c. USD/TWD via yfinance ─────────────────────────────────────────────────────────────
+    # ── 2c. DXY via yfinance ─────────────────────────────────────────────────────────────────
+    # AV's DX-Y.NYB history is incomplete/unreliable (only ~100 bars from Apr 2025).
+    # yfinance gives clean 2-year daily data for DX-Y.NYB.
+    log("yfinance DX-Y.NYB (DXY) …")
+    dxy_price, dxy_series = yfinance_dxy(max_bars=252)
+    if dxy_series:
+        set_series(snap, "dxy", dxy_series, 252)
+        if "dxy" not in snap:
+            snap["dxy"] = {}
+        snap["dxy"]["currentPrice"] = dxy_price if dxy_price else dxy_series[0][1]
+        log(f"DXY yfinance OK: {len(dxy_series)} bars, latest={dxy_series[0][1]:.2f}")
+    elif dxy_price is not None:
+        prepend_price(snap, "dxy", dxy_price, now_ms, max_bars=252)
+        if "dxy" not in snap:
+            snap["dxy"] = {}
+        snap["dxy"]["currentPrice"] = dxy_price
+        log(f"DXY yfinance price-only: {dxy_price}")
+    else:
+        # Ultimate fallback: use GLOBAL_QUOTE price
+        price = gq_cache.get("dxy", (None, None))[0]
+        prepend_price(snap, "dxy", price, now_ms, max_bars=252)
+        log("WARN DXY: yfinance failed, using GLOBAL_QUOTE fallback")
+
+    # ── 2d. USD/TWD via yfinance ─────────────────────────────────────────────────────────────
     log("yfinance TWD=X (USD/TWD) …")
     if HAS_YF:
         try:
