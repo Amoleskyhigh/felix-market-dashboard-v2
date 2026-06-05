@@ -5,9 +5,9 @@ Fetch fresh market data from Alpha Vantage, FRED, CNN Fear & Greed, and yfinance
 then write the updated market-data-snapshot.json in-place.
 
 Data sources:
-  - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, VIX, TNX, DXY, SPX, IXIC
-  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/TNX(100 each)
-  - yfinance                    : HG=F (Copper), DX-Y.NYB (DXY) — AV has incomplete DXY history
+  - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, SPX, IXIC
+  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH(100 each)
+  - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY)
   - FRED CSV                    : BAMLH0A0HYM2 (HY OAS), CAPE (Shiller PE)
   - CNN Fear & Greed            : score, rating, history
 """
@@ -38,7 +38,7 @@ CNN_URL  = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
 # Alpha Vantage free tier: 5 requests/min, 25/day → sleep 15s between calls
 RATE_SLEEP = 15
 
-# ── Utilities ────────────────────────────────────────────────────────────────────────────
+# ── Utilities ────────────────────────────────────────────────────────────────────────────────
 
 def log(msg):
     ts = datetime.datetime.utcnow().strftime("%H:%M:%S")
@@ -52,7 +52,7 @@ def date_to_ms(date_str):
     return int(dt.timestamp() * 1000)
 
 
-# ── Alpha Vantage ───────────────────────────────────────────────────────────────────────
+# ── Alpha Vantage ─────────────────────────────────────────────────────────────────────────────
 
 def av_global_quote(symbol):
     """Return (price: float|None, prev_close: float|None)."""
@@ -92,7 +92,7 @@ def av_time_series(symbol, outputsize="compact"):
         return []
 
 
-# ── yfinance helpers ───────────────────────────────────────────────────────────────────
+# ── yfinance helpers ─────────────────────────────────────────────────────────────────────────────
 
 def yfinance_ticker(yf_symbol, period="1y", max_bars=252, label=None):
     """
@@ -149,7 +149,17 @@ def yfinance_dxy(max_bars=252):
     return yfinance_ticker("DX-Y.NYB", period="2y", max_bars=max_bars, label="DXY DX-Y.NYB")
 
 
-# ── FRED ──────────────────────────────────────────────────────────────────────────────────
+def yfinance_vix(max_bars=100):
+    """Fetch VIX via yfinance. AV ^VIX stopped returning data reliably (May 2026)."""
+    return yfinance_ticker("^VIX", period="6mo", max_bars=max_bars, label="VIX ^VIX")
+
+
+def yfinance_tnx(max_bars=252):
+    """Fetch 10Y Treasury Yield via yfinance. AV ^TNX stopped returning data reliably (May 2026)."""
+    return yfinance_ticker("^TNX", period="2y", max_bars=max_bars, label="TNX ^TNX")
+
+
+# ── FRED ──────────────────────────────────────────────────────────────────────────────────────
 
 def fred_series(series_id):
     """
@@ -177,7 +187,7 @@ def fred_series(series_id):
         return []
 
 
-# ── CNN Fear & Greed ───────────────────────────────────────────────────────────────────
+# ── CNN Fear & Greed ───────────────────────────────────────────────────────────────────────────
 
 
 def fetch_multpl_cape():
@@ -257,7 +267,7 @@ def fetch_cnn():
         return None, None, []
 
 
-# ── Snapshot helpers ──────────────────────────────────────────────────────────────────────
+# ── Snapshot helpers ───────────────────────────────────────────────────────────────────────────────
 
 def set_series(snap, key, series, max_bars):
     """Replace closes/timestamps in snap[key] with time series data."""
@@ -313,17 +323,14 @@ def main():
                     tzinfo=datetime.timezone.utc).timestamp() * 1000)
     today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-    # ── 1. GLOBAL_QUOTE ────────────────────────────────────────────────────────────────
-    # Note: HG=F (copper) removed — Alpha Vantage does not support commodity futures
+    # ── 1. GLOBAL_QUOTE (AV) — SPY, QQQ, SMH, SPX, IXIC only ────────────────────────
+    # NOTE: ^VIX, ^TNX, DX-Y.NYB removed from AV — unreliable since May 2026, now via yfinance
     GQ_SYMBOLS = [
-        ("SPY",      "spy",    True),
-        ("QQQ",      "qqq",    True),
-        ("SMH",      "smh",    True),
-        ("^VIX",     "vix",    False),   # no previousClose in snapshot
-        ("^TNX",     "tnx",    False),
-        ("DX-Y.NYB", "dxy",    False),
-        ("^GSPC",    "spx",    True),
-        ("^IXIC",    "ixic",   True),
+        ("SPY",  "spy",  True),
+        ("QQQ",  "qqq",  True),
+        ("SMH",  "smh",  True),
+        ("^GSPC", "spx", True),
+        ("^IXIC", "ixic", True),
     ]
     gq_cache = {}
     for sym, key, has_prev in GQ_SYMBOLS:
@@ -338,36 +345,69 @@ def main():
                 snap[key]["previousClose"] = prev
         time.sleep(RATE_SLEEP)
 
-    # ── 2. TIME_SERIES_DAILY (Alpha Vantage) ────────────────────────────────────────────
-    # DXY removed from here — now fetched via yfinance (more reliable history)
+    # ── 2. TIME_SERIES_DAILY (AV) ─────────────────────────────────────────────────────
+    # NOTE: ^TNX removed — AV no longer returns reliable data for it (May 2026)
     TS_SYMBOLS = [
-        ("SPY",  "spy",  250, "full"),
-        ("QQQ",  "qqq",  100, "compact"),
-        ("SMH",  "smh",  100, "compact"),
-        ("^TNX", "tnx",  252, "full"),
+        ("SPY", "spy", 250, "full"),
+        ("QQQ", "qqq", 100, "compact"),
+        ("SMH", "smh", 100, "compact"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
         log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) …")
         series = av_time_series(sym, size)
         if series:
             set_series(snap, key, series, max_bars)
-            # Keep currentPrice from GLOBAL_QUOTE; fall back to latest bar
             if snap.get(key, {}).get("currentPrice") is None:
                 if key not in snap:
                     snap[key] = {}
                 snap[key]["currentPrice"] = series[0][1]
         else:
-            # GQ fallback: prepend today's price to existing array
             price = gq_cache.get(key, (None, None))[0]
             prepend_price(snap, key, price, now_ms, max_bars)
         time.sleep(RATE_SLEEP)
 
-    # VIX / SPX / IXIC – GLOBAL_QUOTE only: prepend to closes array
-    for key in ("vix", "spx", "ixic"):
+    # SPX / IXIC – GLOBAL_QUOTE only
+    for key in ("spx", "ixic"):
         price = gq_cache.get(key, (None, None))[0]
         prepend_price(snap, key, price, now_ms)
 
-    # ── 2b. COPPER via yfinance ──────────────────────────────────────────────────────────────
+    # ── 2b. VIX via yfinance (replaces AV ^VIX which stopped working May 2026) ─────────
+    log("yfinance ^VIX …")
+    vix_price, vix_series = yfinance_vix(max_bars=100)
+    if vix_series:
+        set_series(snap, "vix", vix_series, 100)
+        if "vix" not in snap:
+            snap["vix"] = {}
+        snap["vix"]["currentPrice"] = vix_price if vix_price else vix_series[0][1]
+        log(f"VIX yfinance OK: current={snap['vix']['currentPrice']:.2f}, {len(vix_series)} bars")
+    elif vix_price is not None:
+        prepend_price(snap, "vix", vix_price, now_ms, max_bars=100)
+        if "vix" not in snap:
+            snap["vix"] = {}
+        snap["vix"]["currentPrice"] = vix_price
+        log(f"VIX yfinance price-only: {vix_price}")
+    else:
+        log("WARN VIX: yfinance failed, keeping existing snapshot values")
+
+    # ── 2c. TNX via yfinance (replaces AV ^TNX which stopped working May 2026) ─────────
+    log("yfinance ^TNX …")
+    tnx_price, tnx_series = yfinance_tnx(max_bars=252)
+    if tnx_series:
+        set_series(snap, "tnx", tnx_series, 252)
+        if "tnx" not in snap:
+            snap["tnx"] = {}
+        snap["tnx"]["currentPrice"] = tnx_price if tnx_price else tnx_series[0][1]
+        log(f"TNX yfinance OK: current={snap['tnx']['currentPrice']:.2f}, {len(tnx_series)} bars")
+    elif tnx_price is not None:
+        prepend_price(snap, "tnx", tnx_price, now_ms, max_bars=252)
+        if "tnx" not in snap:
+            snap["tnx"] = {}
+        snap["tnx"]["currentPrice"] = tnx_price
+        log(f"TNX yfinance price-only: {tnx_price}")
+    else:
+        log("WARN TNX: yfinance failed, keeping existing snapshot values")
+
+    # ── 2d. COPPER via yfinance ───────────────────────────────────────────────────────────
     log("yfinance HG=F (Copper) …")
     copper_price, copper_series = yfinance_copper(max_bars=100)
     if copper_series:
@@ -383,9 +423,7 @@ def main():
     else:
         log("WARN copper: no data from yfinance, keeping existing snapshot values")
 
-    # ── 2c. DXY via yfinance ─────────────────────────────────────────────────────────────────
-    # AV's DX-Y.NYB history is incomplete/unreliable (only ~100 bars from Apr 2025).
-    # yfinance gives clean 2-year daily data for DX-Y.NYB.
+    # ── 2e. DXY via yfinance ─────────────────────────────────────────────────────────────
     log("yfinance DX-Y.NYB (DXY) …")
     dxy_price, dxy_series = yfinance_dxy(max_bars=252)
     if dxy_series:
@@ -401,12 +439,11 @@ def main():
         snap["dxy"]["currentPrice"] = dxy_price
         log(f"DXY yfinance price-only: {dxy_price}")
     else:
-        # Ultimate fallback: use GLOBAL_QUOTE price
         price = gq_cache.get("dxy", (None, None))[0]
         prepend_price(snap, "dxy", price, now_ms, max_bars=252)
         log("WARN DXY: yfinance failed, using GLOBAL_QUOTE fallback")
 
-    # ── 2d. USD/TWD via yfinance ─────────────────────────────────────────────────────────────
+    # ── 2f. USD/TWD via yfinance ──────────────────────────────────────────────────────────
     log("yfinance TWD=X (USD/TWD) …")
     if HAS_YF:
         try:
@@ -447,7 +484,7 @@ def main():
     else:
         log("WARN yfinance not installed, skipping USD/TWD")
 
-    # ── 3. FRED ────────────────────────────────────────────────────────────────────────────────
+    # ── 3. FRED ─────────────────────────────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) …")
     hy_rows = fred_series("BAMLH0A0HYM2")
     if hy_rows:
@@ -471,7 +508,7 @@ def main():
         existing.update(new_hist)
         snap["shiller"]["history"] = existing
 
-    # ── 4. CNN Fear & Greed ────────────────────────────────────────────────────────────────
+    # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────────────────────
     log("CNN Fear & Greed …")
     score, rating, fng_hist = fetch_cnn()
     if score is not None:
@@ -486,7 +523,7 @@ def main():
             snap["fearGreed"]["history"] = (
                 new_entries + snap["fearGreed"].get("history", []))
 
-    # ── 5. Finalize & write ────────────────────────────────────────────────────────────────
+    # ── 5. Finalize & write ───────────────────────────────────────────────────────────────────
     snap["timestamp"] = now_ms
     with open(SNAPSHOT, "w") as f:
         json.dump(snap, f, separators=(",", ":"))
