@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>估值方法比較報告｜S&P 500 / 科技股</title>
+<style>
+  :root {
+    --green:  #16a34a;
+    --green-bg: #dcfce7;
+    --yellow: #ca8a04;
+    --yellow-bg: #fef9c3;
+    --orange: #ea580c;
+    --orange-bg: #ffedd5;
+    --red:    #dc2626;
+    --red-bg: #fee2e2;
+    --gray:   #6b7280;
+    --dark:   #111827;
+    --mid:    #374151;
+    --light-bg: #f9fafb;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif; background: #f3f4f6; color: var(--dark); font-size: 14px; line-height: 1.6; }
+
+  /* ── 頂部標題 ── */
+  header { background: linear-gradient(135deg, #1e3a5f 0%, #0f2540 100%); color: #fff; padding: 28px 40px 24px; }
+  header h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  header .subtitle { font-size: 13px; color: #93c5fd; }
+  header .meta { margin-top: 12px; display: flex; gap: 24px; flex-wrap: wrap; }
+  header .meta span { font-size: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 10px; }
+
+  /* ── 布局 ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
+  section { margin-bottom: 32px; }
+  h2 { font-size: 17px; font-weight: 700; color: var(--dark); padding: 0 0 8px; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+  h3 { font-size: 14px; font-weight: 700; color: var(--mid); margin: 16px 0 8px; }
+
+  /* ── 執行摘要卡片 ── */
+  .exec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media(max-width:700px){ .exec-grid { grid-template-columns: 1fr; } }
+  .exec-card { border-radius: 10px; padding: 16px; border-left: 4px solid; }
+  .exec-card.danger { border-color: var(--red); background: var(--red-bg); }
+  .exec-card.warning { border-color: var(--orange); background: var(--orange-bg); }
+  .exec-card.caution { border-color: var(--yellow); background: var(--yellow-bg); }
+  .exec-card .method { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--gray); margin-bottom: 4px; }
+  .exec-card .signal { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+  .exec-card.danger .signal { color: var(--red); }
+  .exec-card.warning .signal { color: var(--orange); }
+  .exec-card.caution .signal { color: var(--yellow); }
+  .exec-card .desc { font-size: 12px; color: var(--mid); }
+
+  /* ── 通用表格 ── */
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  th { background: #1e3a5f; color: #fff; font-size: 12px; font-weight: 600; padding: 10px 12px; text-align: left; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #fafafa; }
+
+  /* ── 訊號標籤 ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge.green  { background: var(--green-bg);  color: var(--green); }
+  .badge.yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .badge.orange { background: var(--orange-bg); color: var(--orange); }
+  .badge.red    { background: var(--red-bg);    color: var(--red); }
+
+  /* ── ERP 儀表板 ── */
+  .erp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media(max-width:700px){ .erp-grid { grid-template-columns: repeat(2,1fr); } }
+  .erp-card { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-top: 4px solid; }
+  .erp-card.red-top    { border-color: var(--red); }
+  .erp-card.orange-top { border-color: var(--orange); }
+  .erp-card .ticker { font-size: 11px; color: var(--gray); font-weight: 700; text-transform: uppercase; }
+  .erp-card .erp-val { font-size: 26px; font-weight: 800; margin: 4px 0; }
+  .erp-card.red-top    .erp-val { color: var(--red); }
+  .erp-card.orange-top .erp-val { color: var(--orange); }
+  .erp-card .erp-detail { font-size: 11px; color: var(--gray); line-height: 1.5; }
+
+  /* ── ERP 歷史對比橫條 ── */
+  .erp-history { display: grid; grid-template-columns: 110px 1fr 60px; align-items: center; gap: 10px; margin: 6px 0; }
+  .erp-bar-track { background: #e5e7eb; border-radius: 4px; height: 14px; position: relative; overflow: visible; }
+  .erp-bar-fill { height: 100%; border-radius: 4px; position: absolute; top: 0; }
+  .erp-history-label { font-size: 11px; color: var(--mid); }
+  .erp-history-val   { font-size: 12px; font-weight: 700; text-align: right; }
+
+  /* ── 量尺（百分位） ── */
+  .gauge-wrap { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .gauge-track { height: 24px; border-radius: 12px; background: linear-gradient(to right, #16a34a 0%, #ca8a04 50%, #ea580c 75%, #dc2626 90%, #7f1d1d 100%); position: relative; margin: 12px 0 8px; }
+  .gauge-needle { position: absolute; top: -6px; width: 4px; height: 36px; background: #111; border-radius: 2px; transform: translateX(-2px); }
+  .gauge-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--gray); }
+  .gauge-zones { display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; margin-top: 10px; text-align: center; font-size: 10px; }
+  .gz { border-radius: 4px; padding: 3px; }
+  .gz.green  { background: var(--green-bg);  color: var(--green); }
+  .gz.yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .gz.orange { background: var(--orange-bg); color: var(--orange); }
+  .gz.red    { background: var(--red-bg);    color: var(--red); }
+  .gz.darkred{ background: #7f1d1d; color: #fca5a5; }
+
+  /* ── σ 量尺 ── */
+  .sigma-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .sigma-row label { font-size: 12px; color: var(--mid); width: 120px; flex-shrink: 0; }
+  .sigma-track { flex: 1; height: 16px; border-radius: 8px; background: #e5e7eb; position: relative; overflow: visible; }
+  .sigma-fill { height: 100%; border-radius: 8px; }
+  .sigma-marker { position: absolute; top: -5px; width: 6px; height: 26px; background: #111; border-radius: 3px; }
+  .sigma-val { font-size: 12px; font-weight: 700; width: 70px; text-align: right; }
+
+  /* ── 方法詳情 ── */
+  .method-section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 16px; }
+  .method-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .method-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; flex-shrink: 0; }
+  .num-blue { background: #1e3a5f; }
+  .num-teal { background: #0f766e; }
+  .num-purple { background: #6d28d9; }
+  .method-title { font-size: 15px; font-weight: 700; }
+  .formula-box { background: #f0f4f8; border-left: 3px solid #1e3a5f; padding: 10px 14px; border-radius: 0 6px 6px 0; font-family: monospace; font-size: 13px; margin: 10px 0; }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  @media(max-width:600px){ .pros-cons { grid-template-columns: 1fr; } }
+  .pro-box, .con-box { border-radius: 8px; padding: 10px 12px; font-size: 12px; }
+  .pro-box { background: var(--green-bg); color: #14532d; }
+  .con-box { background: var(--red-bg); color: #7f1d1d; }
+  .pro-box strong, .con-box strong { display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
+  ul.dot { list-style: none; }
+  ul.dot li::before { content: '• '; }
+  ul.dot li { margin: 3px 0; }
+
+  /* ── 推薦 ── */
+  .rec-card { background: linear-gradient(135deg, #1e3a5f, #0f2540); color: #fff; border-radius: 12px; padding: 20px 24px; }
+  .rec-card h3 { color: #93c5fd; margin-bottom: 10px; }
+  .rec-row { display: flex; gap: 16px; margin: 8px 0; align-items: flex-start; }
+  .rec-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+  .rec-text { font-size: 13px; line-height: 1.6; color: #e0e7ef; }
+  .rec-text strong { color: #fff; }
+
+  /* ── 日報格式 ── */
+  .daily-box { background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 16px 20px; font-family: monospace; font-size: 13px; line-height: 2; }
+  .daily-box .g { color: #4ade80; }
+  .daily-box .y { color: #fde047; }
+  .daily-box .o { color: #fb923c; }
+  .daily-box .r { color: #f87171; }
+  .daily-box .w { color: #fff; font-weight: 700; }
+
+  /* ── footer ── */
+  footer { text-align: center; font-size: 11px; color: #9ca3af; margin-top: 20px; }
+
+  /* ── 比較大表格欄寬調整 ── */
+  .compare-table td:nth-child(1) { width: 15%; font-weight: 600; }
+  .compare-table td:nth-child(2) { width: 18%; }
+  .compare-table td:nth-child(3) { width: 12%; font-weight: 700; }
+  .compare-table td:nth-child(4) { width: 20%; }
+  .compare-table td:nth-child(5) { width: 10%; }
+  .compare-table td:nth-child(6) { width: 12%; }
+  .compare-table td:nth-child(7) { width: 13%; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📊 估值方法比較報告｜S&amp;P 500 / QQQ / SMH</h1>
+  <div class="subtitle">三種核心估值框架完整比較 ── ERP 閾值法 · 滾動20年σ法 · 百分位法</div>
+  <div class="meta">
+    <span>📅 更新日期：2026-06-18</span>
+    <span>🔢 Shiller CAPE：<strong>41.92</strong></span>
+    <span>📈 SPY Fwd PE：20.9x</span>
+    <span>📈 QQQ Fwd PE：31x</span>
+    <span>📈 SMH Fwd PE：30x</span>
+    <span>🏦 TNX（10年債）：4.43%</span>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ━━━━━━━━━ 一、執行摘要 ━━━━━━━━━ -->
+<section>
+  <h2>一、執行摘要</h2>
+  <div class="exec-grid">
+
+    <div class="exec-card danger">
+      <div class="method">方法一 · ERP 閾值法</div>
+      <div class="signal">🔴 高估危險 / 泡沫</div>
+      <div class="desc">
+        SPY ERP = <strong>+0.36%</strong>（高估危險，0–1%區間）<br>
+        CAPE 盈利殖利率 ERP = <strong>−2.04%</strong>（泡沫，＜0%）<br>
+        債股吸引力差距為近20年最低水準
+      </div>
+    </div>
+
+    <div class="exec-card warning">
+      <div class="method">方法二 · 滾動20年 ±1.5σ</div>
+      <div class="signal">🟠 顯著超過上限</div>
+      <div class="desc">
+        當前 CAPE 41.92 超過近10年1.5σ上限（38.67）約 <strong>+8.4%</strong><br>
+        超過近30年1.5σ上限（38.8）約 <strong>+7.9%</strong><br>
+        持續偏離均值（32.46）達 <strong>+2.3σ</strong>
+      </div>
+    </div>
+
+    <div class="exec-card caution">
+      <div class="method">方法三 · 百分位法</div>
+      <div class="signal">🔴 極端區 P99</div>
+      <div class="desc">
+        在近10年快照中：<strong>P98.4</strong>（僅2016年曾更低）<br>
+        估算全歷史（1871–2026）：<strong>~P99</strong><br>
+        CAPE&gt;40 全歷史僅出現於1999–2000與2021–2022
+      </div>
+    </div>
+
+  </div>
+  <p style="margin-top:12px; font-size:12px; color:var(--gray);">
+    ⚠️ 三種方法均指向同一結論：當前市場估值處於歷史極端偏高水準。但「高估值」不等於「立即下跌」——過高的估值可以維持數年，應搭配動能/流動性指標共同研判。
+  </p>
+</section>
+
+<!-- ━━━━━━━━━ 二、三種方法並排比較表 ━━━━━━━━━ -->
+<section>
+  <h2>二、三種方法並排比較</h2>
+  <div style="overflow-x:auto;">
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>方法</th>
+        <th>計算方式</th>
+        <th>當前值</th>
+        <th>警戒閾值</th>
+        <th>當前訊號</th>
+        <th>優點</th>
+        <th>缺點</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>① ERP 閾值法<br><span style="font-size:10px;color:var(--gray);">股票風險溢酬</span></td>
+        <td>盈利殖利率（1/PE）<br>− 無風險利率（TNX）</td>
+        <td>
+          SPY: <span style="color:var(--red);font-weight:700;">+0.36%</span><br>
+          CAPE: <span style="color:var(--red);font-weight:700;">−2.04%</span>
+        </td>
+        <td>
+          ＞4%：安全 🟢<br>
+          2–4%：正常 🟡<br>
+          1–2%：偏高 🟠<br>
+          0–1%：危險 🔴<br>
+          ＜0%：泡沫 ☠️
+        </td>
+        <td>
+          <span class="badge red">危險 / 泡沫</span>
+        </td>
+        <td>
+          ✅ 考慮利率環境<br>
+          ✅ 跨資產比較<br>
+          ✅ 即時反映
+        </td>
+        <td>
+          ❌ 依賴 Forward PE（分析師偏高估）<br>
+          ❌ 利率驟升會誤判
+        </td>
+      </tr>
+      <tr>
+        <td>② 滾動20年<br>±1.5σ 法<br><span style="font-size:10px;color:var(--gray);">動態基準</span></td>
+        <td>計算滾動20年 CAPE<br>的均值±1.5σ<br>作為動態上下限</td>
+        <td>
+          CAPE: <span style="color:var(--red);font-weight:700;">41.92</span><br>
+          均值: 32.46<br>
+          +1.5σ: 38.67
+        </td>
+        <td>
+          ＜均值：偏低<br>
+          均值～+1σ：合理<br>
+          +1σ～+1.5σ：偏高<br>
+          ＞+1.5σ：警戒 🔴<br>
+          ＞+2σ：極端
+        </td>
+        <td>
+          <span class="badge red">+2.3σ 超出警戒</span>
+        </td>
+        <td>
+          ✅ 避免遠古低PE拖累<br>
+          ✅ 適應結構性轉變<br>
+          ✅ 統計嚴謹
+        </td>
+        <td>
+          ❌ 窗口期選擇主觀<br>
+          ❌ 不考慮利率<br>
+          ❌ 延遲反映趨勢轉折
+        </td>
+      </tr>
+      <tr>
+        <td>③ 百分位法<br><span style="font-size:10px;color:var(--gray);">P10–P90</span></td>
+        <td>對歷史數據排序<br>計算當前值在全部<br>歷史中的百分位</td>
+        <td>
+          10yr快照: <span style="color:var(--red);font-weight:700;">P98.4</span><br>
+          全歷史估算: <span style="color:var(--red);font-weight:700;">~P99</span>
+        </td>
+        <td>
+          P50以下：偏低<br>
+          P50–P75：正常<br>
+          P75–P90：偏高 🟠<br>
+          P90–P95：警戒 🔴<br>
+          P95+：極端 ☠️
+        </td>
+        <td>
+          <span class="badge red">P99 極端</span>
+        </td>
+        <td>
+          ✅ 不假設常態分佈<br>
+          ✅ 直觀、易溝通<br>
+          ✅ 歷史相對感強
+        </td>
+        <td>
+          ❌ 需要完整長期資料<br>
+          ❌ 忽視利率背景<br>
+          ❌ 歷史窗口不同結論差很多
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ━━━━━━━━━ 三、方法一：ERP 閾值法 ━━━━━━━━━ -->
+<section>
+  <h2>三、各方法詳細說明</h2>
+
+  <div class="method-section">
+    <div class="method-header">
+      <div class="method-num num-blue">①</div>
+      <div class="method-title">ERP 閾值法（股票風險溢酬）</div>
+    </div>
+
+    <div class="formula-box">
+      ERP = 盈利殖利率（Earnings Yield）− 無風險利率（TNX）<br>
+      ERP = (1 ÷ Forward PE)  −  TNX%<br><br>
+      SPY：  (1 ÷ 20.9)  − 4.43% =  4.785% − 4.43% = <strong>+0.355%</strong>  🔴 高估危險<br>
+      QQQ：  (1 ÷ 31.0)  − 4.43% =  3.226% − 4.43% = <strong>−1.204%</strong>  ☠️ 泡沫<br>
+      SMH：  (1 ÷ 30.0)  − 4.43% =  3.333% − 4.43% = <strong>−1.097%</strong>  ☠️ 泡沫<br>
+      CAPE： (1 ÷ 41.92) − 4.43% =  2.386% − 4.43% = <strong>−2.044%</strong>  ☠️ 泡沫
+    </div>
+
+    <h3>當前各標的 ERP 儀表板</h3>
+    <div class="erp-grid">
+      <div class="erp-card red-top">
+        <div class="ticker">SPY · S&amp;P 500</div>
+        <div class="erp-val">+0.36%</div>
+        <div class="erp-detail">
+          盈利殖利率：4.79%<br>
+          − TNX：4.43%<br>
+          Fwd PE：20.9x<br>
+          <span class="badge red">高估危險 (0–1%)</span>
+        </div>
+      </div>
+      <div class="erp-card red-top">
+        <div class="ticker">QQQ · 那斯達克100</div>
+        <div class="erp-val">−1.20%</div>
+        <div class="erp-detail">
+          盈利殖利率：3.23%<br>
+          − TNX：4.43%<br>
+          Fwd PE：31x<br>
+          <span class="badge red">泡沫區 (&lt;0%)</span>
+        </div>
+      </div>
+      <div class="erp-card red-top">
+        <div class="ticker">SMH · 半導體</div>
+        <div class="erp-val">−1.10%</div>
+        <div class="erp-detail">
+          盈利殖利率：3.33%<br>
+          − TNX：4.43%<br>
+          Fwd PE：30x<br>
+          <span class="badge red">泡沫區 (&lt;0%)</span>
+        </div>
+      </div>
+      <div class="erp-card red-top">
+        <div class="ticker">CAPE · 周期調整</div>
+        <div class="erp-val">−2.04%</div>
+        <div class="erp-detail">
+          盈利殖利率：2.39%<br>
+          − TNX：4.43%<br>
+          CAPE：41.92<br>
+          <span class="badge red">泡沫區 (&lt;0%)</span>
+        </div>
+      </div>
+    </div>
+
+    <h3>ERP 歷史脈絡對比</h3>
+    <div style="background:#f8fafc; border-radius:8px; padding:14px 16px; margin-top:8px;">
+      <div class="erp-history">
+        <span class="erp-history-label" style="color:var(--red);">1999–2000 科網泡沫</span>
+        <div class="erp-bar-track">
+          <div class="erp-bar-fill" style="left:15%;width:10%;background:var(--red);opacity:.8;"></div>
+        </div>
+        <span class="erp-history-val" style="color:var(--red);">≈ −3.0%</span>
+      </div>
+      <div class="erp-history">
+        <span class="erp-history-label" style="color:var(--green);">2009 金融危機低點</span>
+        <div class="erp-bar-track">
+          <div class="erp-bar-fill" style="left:25%;width:60%;background:var(--green);opacity:.8;"></div>
+        </div>
+        <span class="erp-history-val" style="color:var(--green);">≈ +5.5%</span>
+      </div>
+      <div class="erp-history">
+        <span class="erp-history-label" style="color:var(--green);">2013 均衡期</span>
+        <div class="erp-bar-track">
+          <div class="erp-bar-fill" style="left:25%;width:40%;background:var(--green);opacity:.7;"></div>
+        </div>
+        <span class="erp-history-val" style="color:var(--green);">≈ +3.5%</span>
+      </div>
+      <div class="erp-history">
+        <span class="erp-history-label" style="color:var(--yellow);">2021 低利率高PE</span>
+        <div class="erp-bar-track">
+          <div class="erp-bar-fill" style="left:25%;width:27%;background:var(--yellow);opacity:.8;"></div>
+        </div>
+        <span class="erp-history-val" style="color:var(--yellow);">≈ +1.5%</span>
+      </div>
+      <div class="erp-history">
+        <span class="erp-history-label" style="color:var(--orange);">2022 升息後</span>
+        <div class="erp-bar-track">
+          <div class="erp-bar-fill" style="left:25%;width:0%;background:var(--orange);opacity:.8;"></div>
+        </div>
+        <span class="erp-history-val" style="color:var(--orange);">≈ −0.2%</span>
+      </div>
+      <div class="erp-history">
+        <span class="erp-history-label" style="color:var(--red);font-weight:700;">▶ 2026-06 現在（SPY）</span>
+        <div class="erp-bar-track">
+          <div class="erp-bar-fill" style="left:25%;width:3.6%;background:var(--red);"></div>
+        </div>
+        <span class="erp-history-val" style="color:var(--red);font-weight:700;">+0.36%</span>
+      </div>
+      <p style="font-size:11px;color:var(--gray);margin-top:8px;">* 橫條以 ERP=0% 為 25% 位置（左側為負值），+5% 為 75% 位置，示意用途。</p>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pro-box">
+        <strong>✅ 優點</strong>
+        <ul class="dot">
+          <li>唯一同時考慮「股票估值」+「利率水準」的方法</li>
+          <li>適合跨資產決策（股 vs 債的相對吸引力）</li>
+          <li>可即時用最新 Forward PE 計算，無延遲</li>
+          <li>1999年曾精準預警（ERP轉負）</li>
+        </ul>
+      </div>
+      <div class="con-box">
+        <strong>❌ 缺點</strong>
+        <ul class="dot">
+          <li>Forward PE 來自分析師預估，系統性偏高估</li>
+          <li>利率突然大幅波動會造成訊號失真</li>
+          <li>閾值選擇（4%/2%/1%）帶有主觀性</li>
+          <li>低利率時代（2010–2021）閾值需重新校準</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方法二 -->
+  <div class="method-section">
+    <div class="method-header">
+      <div class="method-num num-teal">②</div>
+      <div class="method-title">滾動20年窗口 ±1.5σ 法（動態基準）</div>
+    </div>
+
+    <div class="formula-box">
+      動態上限 = 滾動20年 CAPE 均值  +  1.5 × σ<br>
+      動態下限 = 滾動20年 CAPE 均值  −  1.5 × σ<br><br>
+      近10年快照：  均值 32.46，σ 4.14  →  上限 38.67，下限 26.25<br>
+      近30年估算：  均值 27.5，  σ 7.5   →  上限 38.75，下限 16.25<br>
+      推估20年窗口：均值 ~29–31，σ ~6–7 →  上限 ~38–41.5<br>
+      全歷史(不推薦)：均值 17.39，σ 6.6  →  上限 27.3（過度低估近代結構）
+    </div>
+
+    <h3>為什麼用20年而非全歷史？</h3>
+    <p style="font-size:13px; color:var(--mid); margin:8px 0 12px;">
+      1920–1970年代因通膨高企、資本市場不成熟，Shiller CAPE 長期維持在 10–20x 的低檔。
+      若用全歷史均值（17.39），會將此一「結構性」的低估時期硬套用在當代市場，
+      導致現代任何正常的估值水準都會被判為「嚴重高估」。
+      滾動20年窗口既能避免遠古數據拖累，又能保留足夠的周期樣本（含2000年泡沫、2008年危機、2020年疫情）。
+    </p>
+
+    <h3>各統計窗口比較（CAPE）</h3>
+    <div style="background:#f8fafc; border-radius:8px; padding:14px 16px;">
+      <div class="sigma-row">
+        <label style="color:var(--gray);">全歷史 1871–2026</label>
+        <div class="sigma-track">
+          <div class="sigma-fill" style="width:100%;background:linear-gradient(to right,#4ade80 0%,#fde047 50%,#f87171 100%);border-radius:8px;opacity:.4;"></div>
+          <div class="sigma-marker" style="left:82%;background:var(--red);"></div>
+          <div style="position:absolute;top:0;left:50%;width:2px;height:16px;background:#374151;opacity:.5;"></div>
+        </div>
+        <span class="sigma-val" style="color:var(--red);">均值17.4<br>+2.3σ≫上限27.3</span>
+      </div>
+      <div class="sigma-row">
+        <label style="color:var(--orange);">近30年 1994–2026</label>
+        <div class="sigma-track">
+          <div class="sigma-fill" style="width:100%;background:linear-gradient(to right,#4ade80 0%,#fde047 50%,#f87171 100%);border-radius:8px;opacity:.4;"></div>
+          <div style="position:absolute;top:0;left:75%;width:2px;height:16px;background:#374151;opacity:.5;"></div>
+          <div class="sigma-marker" style="left:82%;background:var(--orange);"></div>
+        </div>
+        <span class="sigma-val" style="color:var(--orange);">均值27.5<br>超過上限38.8</span>
+      </div>
+      <div class="sigma-row">
+        <label style="color:var(--orange);">近10年快照</label>
+        <div class="sigma-track">
+          <div class="sigma-fill" style="width:100%;background:linear-gradient(to right,#4ade80 0%,#fde047 50%,#f87171 100%);border-radius:8px;opacity:.4;"></div>
+          <div style="position:absolute;top:0;left:75%;width:2px;height:16px;background:#374151;opacity:.5;"></div>
+          <div class="sigma-marker" style="left:82%;background:var(--orange);"></div>
+        </div>
+        <span class="sigma-val" style="color:var(--orange);">均值32.5<br>超過上限38.7</span>
+      </div>
+      <p style="font-size:11px;color:var(--gray);margin-top:6px;">* 垂直黑線為各窗口的 +1.5σ 上限位置，紅/橙色箭頭為當前 CAPE=41.92 位置。</p>
+    </div>
+
+    <div style="margin-top:12px; background:var(--orange-bg); border-left:4px solid var(--orange); padding:10px 14px; border-radius:0 6px 6px 0; font-size:12px; color:#7c2d12;">
+      <strong>結論：</strong>無論用哪個統計窗口，CAPE 41.92 都超出 +1.5σ 上限。
+      在近10年窗口下，偏離幅度 = (41.92 − 32.46) ÷ 4.14 = <strong>+2.28σ</strong>，屬於統計上「極端偏高」（正常分佈下僅約 1.1% 的機率）。
+    </div>
+
+    <div class="pros-cons">
+      <div class="pro-box">
+        <strong>✅ 優點</strong>
+        <ul class="dot">
+          <li>兼顧「當代結構」與「歷史周期」</li>
+          <li>σ量化讓警戒程度一目了然</li>
+          <li>窗口可依研究目的靈活調整</li>
+          <li>適合做時間序列的趨勢追蹤</li>
+        </ul>
+      </div>
+      <div class="con-box">
+        <strong>❌ 缺點</strong>
+        <ul class="dot">
+          <li>20年 vs 30年 vs 10年的選擇帶有主觀性</li>
+          <li>未考慮利率（同 CAPE 本身的先天限制）</li>
+          <li>在趨勢轉折期，均值會緩慢追隨，有滯後</li>
+          <li>Shiller CAPE 本身就是10年均值，再加窗口有「均值嵌套」問題</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方法三 -->
+  <div class="method-section">
+    <div class="method-header">
+      <div class="method-num num-purple">③</div>
+      <div class="method-title">百分位法（P10–P90，無常態假設）</div>
+    </div>
+
+    <div class="formula-box">
+      百分位 = (低於當前值的歷史觀測數) ÷ (總觀測數) × 100%<br><br>
+      近10年快照（n=124）：41.92 以下有 122 筆 → 百分位 = 122/124 = <strong>98.4</strong><br>
+      全歷史估算（1871–2026）：CAPE&gt;40 極罕見 → 估算 <strong>~P99</strong>
+    </div>
+
+    <h3>近10年 CAPE 百分位分佈</h3>
+    <div class="gauge-wrap">
+      <p style="font-size:12px;color:var(--mid);margin-bottom:4px;">CAPE 百分位量尺（近10年快照）</p>
+      <div class="gauge-track">
+        <div class="gauge-needle" style="left:98.4%;"></div>
+      </div>
+      <div class="gauge-labels">
+        <span>P0（最低）</span>
+        <span>P50（中位）</span>
+        <span>P75</span>
+        <span>P90</span>
+        <span>P95</span>
+        <span>P100</span>
+      </div>
+      <div class="gauge-zones">
+        <div class="gz green">P0–P50<br>偏低<br>（≤31.3）</div>
+        <div class="gz yellow">P50–P75<br>正常<br>（31.3–36.1）</div>
+        <div class="gz orange">P75–P90<br>偏高<br>（36.1–38.3）</div>
+        <div class="gz red">P90–P95<br>警戒<br>（38.3–39.8）</div>
+        <div class="gz darkred">P95+<br>極端<br>（&gt;39.8）<br>▶ 當前 41.92</div>
+      </div>
+    </div>
+
+    <h3>近10年快照關鍵百分位對照</h3>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>百分位</th><th>CAPE 值</th><th>對應年份（約）</th><th>市場情境</th><th>訊號</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>P10</td><td>28.06</td><td>2016–2017</td><td>疫情前估值相對合理</td><td><span class="badge green">偏低</span></td></tr>
+        <tr><td>P25</td><td>29.23</td><td>2017</td><td>正常偏低</td><td><span class="badge green">合理</span></td></tr>
+        <tr><td>P50（中位）</td><td>31.28</td><td>2018–2019</td><td>正常估值中樞</td><td><span class="badge yellow">正常</span></td></tr>
+        <tr><td>P75</td><td>36.12</td><td>2020下半年</td><td>疫情後反彈</td><td><span class="badge orange">偏高</span></td></tr>
+        <tr><td>P90</td><td>38.34</td><td>2021初</td><td>低利率+QE高峰</td><td><span class="badge red">警戒</span></td></tr>
+        <tr><td>P95</td><td>39.84</td><td>2021中</td><td>接近歷史頂部</td><td><span class="badge red">極端</span></td></tr>
+        <tr><td><strong>P98.4</strong></td><td><strong>41.92</strong></td><td><strong>2026-06 ▶</strong></td><td><strong>當前水準</strong></td><td><span class="badge red">☠️ 歷史極端</span></td></tr>
+        <tr><td>P100（最高）</td><td>42.15</td><td>2026-05-11</td><td>近期高點</td><td><span class="badge red">歷史最高</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>全歷史（1871–2026）脈絡</h3>
+    <div style="background:#f8fafc;border-radius:8px;padding:14px 16px;font-size:12px;color:var(--mid);">
+      <p>根據耶魯 Robert Shiller 數據集（multpl.com），CAPE 歷史上突破 40 的情況極為罕見：</p>
+      <ul class="dot" style="margin:8px 0 0 8px;">
+        <li><strong>1999年12月：CAPE 達 44.2</strong>——美股隨後三年跌幅約 -49%（S&amp;P 500）</li>
+        <li><strong>2021年11月：CAPE 達 38.6</strong>——隨後 2022 年跌幅約 -19.4%</li>
+        <li><strong>2026年5月：CAPE 達 42.2</strong>——超過 1929年大崩盤前高點（32.6）</li>
+        <li>1871–2026 全歷史中，CAPE 超過 40 的月份不超過 <strong>2%</strong></li>
+      </ul>
+      <p style="margin-top:8px;color:var(--gray);">⚠️ 注意：高 CAPE 是預測 10 年長期報酬率的良好指標，但對短期（1–2年）時機判斷能力有限。</p>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pro-box">
+        <strong>✅ 優點</strong>
+        <ul class="dot">
+          <li>不假設常態分佈，更穩健</li>
+          <li>溝通直觀：「現在比 99% 的歷史都貴」</li>
+          <li>適合長期投資者做資產配置參考</li>
+          <li>可輕鬆擴展到任何估值指標</li>
+        </ul>
+      </div>
+      <div class="con-box">
+        <strong>❌ 缺點</strong>
+        <ul class="dot">
+          <li>需要跨越不同利率制度的長期數據，比較意義有限</li>
+          <li>忽視利率、通膨等背景因素</li>
+          <li>10年快照 vs 全歷史結論差異大，需明確說明基準</li>
+          <li>對短期價格方向無預測能力</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━━━━━━━ 四、推薦與組合應用 ━━━━━━━━━ -->
+<section>
+  <h2>四、推薦：每日報告應用建議</h2>
+  <div class="rec-card">
+    <h3>🎯 建議的「三層訊號架構」</h3>
+
+    <div class="rec-row">
+      <div class="rec-icon">1️⃣</div>
+      <div class="rec-text">
+        <strong>主訊號：ERP 閾值法（每日更新）</strong><br>
+        最敏感、最即時。利率每日變動，Forward PE 每季更新。
+        建議以 SPY Forward PE ERP 為核心，CAPE ERP 為確認。
+        閾值：ERP&lt;1% = 警戒，ERP&lt;0% = 泡沫。
+      </div>
+    </div>
+
+    <div class="rec-row">
+      <div class="rec-icon">2️⃣</div>
+      <div class="rec-text">
+        <strong>結構訊號：近10年 CAPE ±1.5σ（每週更新）</strong><br>
+        用於確認 ERP 訊號是否有歷史基礎。
+        當 CAPE 超過 +1.5σ（38.67）且 ERP&lt;1% 時，雙重警戒。
+        目前兩者均告警，訊號高度一致。
+      </div>
+    </div>
+
+    <div class="rec-row">
+      <div class="rec-icon">3️⃣</div>
+      <div class="rec-text">
+        <strong>背景脈絡：百分位（每月更新）</strong><br>
+        用一句話說明市場在歷史上的相對位置，適合報告開頭或摘要。
+        「CAPE 41.92 = 近10年 P98.4，歷史極端偏高」。
+      </div>
+    </div>
+
+    <div style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;">
+      <h3 style="margin-bottom:10px;">⚠️ 重要補充：高估值不等於賣出訊號</h3>
+      <p class="rec-text">
+        三種方法都顯示「高估」，但高估值可以維持 2–5 年（如 1997–2000、2019–2021）。
+        <strong>建議搭配以下指標綜合判斷：</strong>
+        動能指標（SPX 月線趨勢）、流動性指標（RRP / Fed資產負債表）、VIX（恐慌指數）、
+        信用利差（HY OAS）。高估值 + 動能轉弱 + VIX放大 才是真正的警戒組合。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━━━━━━━ 五、每日日報建議格式 ━━━━━━━━━ -->
+<section>
+  <h2>五、每日 SP500 日報建議顯示格式</h2>
+  <p style="font-size:12px;color:var(--gray);margin-bottom:12px;">以下為建議的估值區塊，可直接嵌入每日 SP500 日報（1–2行版 + 詳細版）：</p>
+
+  <h3>精簡版（日報首頁，1行）</h3>
+  <div class="daily-box">
+    <span class="w">📊 估值｜</span>
+    <span class="r">CAPE 41.92（P98.4 / +2.3σ）</span>
+    <span class="w">｜</span>
+    <span class="r">SPY ERP +0.36%🔴</span>
+    <span class="w">｜</span>
+    <span class="r">QQQ/SMH ERP &lt;0%☠️</span>
+    <span class="w">｜整體：高估極端</span>
+  </div>
+
+  <h3 style="margin-top:16px;">詳細版（日報估值區塊，5行）</h3>
+  <div class="daily-box">
+    <span class="w">━━ 估值儀表板 ━━━━━━━━━━━━━━━━━━━━</span><br>
+    <span class="r">🔴 SPY  Fwd PE 20.9x │ ERP +0.36% │ 高估危險（0–1%）</span><br>
+    <span class="r">☠️ QQQ  Fwd PE 31.0x │ ERP −1.20% │ 泡沫（&lt;0%）</span><br>
+    <span class="r">☠️ SMH  Fwd PE 30.0x │ ERP −1.10% │ 泡沫（&lt;0%）</span><br>
+    <span class="r">🔴 CAPE 41.92  │ P98.4（近10年）│ +2.3σ 超出上限38.67 │ 歷史極端</span><br>
+    <span class="y">⚠️ 三種估值法均告警 ── 高估值不等於立即下跌，搭配 VIX / HY OAS 研判方向</span>
+  </div>
+
+  <h3 style="margin-top:16px;">警戒色彩規則（適用所有格式）</h3>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr><th>ERP 水準</th><th>CAPE 百分位</th><th>σ 偏離</th><th>顏色</th><th>標籤</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>&gt; 4%</td><td>&lt; P50</td><td>&lt; 0σ</td><td><span class="badge green">🟢 安全</span></td><td>低估/合理</td></tr>
+      <tr><td>2–4%</td><td>P50–P75</td><td>0–1σ</td><td><span class="badge yellow">🟡 正常</span></td><td>合理估值</td></tr>
+      <tr><td>1–2%</td><td>P75–P90</td><td>1–1.5σ</td><td><span class="badge orange">🟠 偏高</span></td><td>需留意</td></tr>
+      <tr><td>0–1%</td><td>P90–P95</td><td>1.5–2σ</td><td><span class="badge red">🔴 危險</span></td><td>高估警戒</td></tr>
+      <tr><td>&lt; 0%</td><td>&gt; P95</td><td>&gt; 2σ</td><td><span class="badge red">☠️ 泡沫</span></td><td>歷史極端</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ━━━━━━━━━ 附錄 ━━━━━━━━━ -->
+<section>
+  <h2>附錄：關鍵統計參數速查</h2>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr><th>指標</th><th>統計窗口</th><th>均值</th><th>σ</th><th>+1.5σ 上限</th><th>當前值</th><th>訊號</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Shiller CAPE</td><td>全歷史 1871–2026</td>
+        <td>17.39</td><td>6.6</td><td>27.3</td>
+        <td><strong>41.92</strong></td>
+        <td><span class="badge red">+3.7σ 遠超</span></td>
+      </tr>
+      <tr>
+        <td>Shiller CAPE</td><td>近30年 1994–2026</td>
+        <td>27.5</td><td>7.5</td><td>38.75</td>
+        <td><strong>41.92</strong></td>
+        <td><span class="badge red">超過 +8.2%</span></td>
+      </tr>
+      <tr>
+        <td>Shiller CAPE</td><td>近10年快照</td>
+        <td>32.46</td><td>4.14</td><td>38.67</td>
+        <td><strong>41.92</strong></td>
+        <td><span class="badge red">+2.28σ</span></td>
+      </tr>
+      <tr>
+        <td>SPY Fwd PE</td><td>25年 ~2000–2026</td>
+        <td>16.75</td><td>3.29</td><td>21.7</td>
+        <td><strong>20.9</strong></td>
+        <td><span class="badge orange">接近上限</span></td>
+      </tr>
+      <tr>
+        <td>QQQ Fwd PE</td><td>估算</td>
+        <td>24.0</td><td>5.5</td><td>32.25</td>
+        <td><strong>31.0</strong></td>
+        <td><span class="badge orange">接近上限</span></td>
+      </tr>
+      <tr>
+        <td>SMH Fwd PE</td><td>估算</td>
+        <td>22.0</td><td>7.0</td><td>32.5</td>
+        <td><strong>30.0</strong></td>
+        <td><span class="badge yellow">接近上限</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<footer>
+  <p>本報告由 Claude Cowork 自動生成 · 數據來源：Shiller PE（multpl.com）、FactSet、快照 merged_snapshot.json · 更新：2026-06-18</p>
+  <p style="margin-top:4px;">⚠️ 本報告僅供參考，不構成投資建議。過去表現不代表未來結果。</p>
+</footer>
+
+</body>
+</html>
