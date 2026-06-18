@@ -7,7 +7,7 @@ then write the updated market-data-snapshot.json in-place.
 Data sources:
   - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, SPX, IXIC
   - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH(100 each)
-  - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY)
+  - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY), Forward P/E
   - FRED CSV                    : BAMLH0A0HYM2 (HY OAS), CAPE (Shiller PE)
   - CNN Fear & Greed            : score, rating, history
 """
@@ -27,7 +27,7 @@ try:
 except ImportError:
     HAS_YF = False
 
-# ── Config ────────────────────────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────────────────────
 
 AV_KEY   = os.environ.get("AV_KEY", "G82DB8ZUK7E0FBKV")
 SNAPSHOT = "market-data-snapshot.json"
@@ -38,7 +38,7 @@ CNN_URL  = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
 # Alpha Vantage free tier: 5 requests/min, 25/day → sleep 15s between calls
 RATE_SLEEP = 15
 
-# ── Utilities ────────────────────────────────────────────────────────────────────────────────
+# ── Utilities ────────────────────────────────────────────────────────────────────────────────────
 
 def log(msg):
     ts = datetime.datetime.utcnow().strftime("%H:%M:%S")
@@ -52,7 +52,7 @@ def date_to_ms(date_str):
     return int(dt.timestamp() * 1000)
 
 
-# ── Alpha Vantage ─────────────────────────────────────────────────────────────────────────────
+# ── Alpha Vantage ────────────────────────────────────────────────────────────────────────────────────
 
 def av_global_quote(symbol):
     """Return (price: float|None, prev_close: float|None)."""
@@ -92,7 +92,7 @@ def av_time_series(symbol, outputsize="compact"):
         return []
 
 
-# ── yfinance helpers ─────────────────────────────────────────────────────────────────────────────
+# ── yfinance helpers ────────────────────────────────────────────────────────────────────────────────────
 
 def yfinance_ticker(yf_symbol, period="1y", max_bars=252, label=None):
     """
@@ -159,7 +159,31 @@ def yfinance_tnx(max_bars=252):
     return yfinance_ticker("^TNX", period="2y", max_bars=max_bars, label="TNX ^TNX")
 
 
-# ── FRED ──────────────────────────────────────────────────────────────────────────────────────
+def fetch_forward_pe():
+    """
+    Fetch forward P/E for SPY, QQQ, SMH via yfinance .info.
+    Returns dict {"spy": float, "qqq": float, "smh": float} with available values.
+    Note: .info is a heavier call than fast_info but is needed for forwardPE.
+    """
+    result = {}
+    if not HAS_YF:
+        log("WARN yfinance not installed, skipping forward P/E")
+        return result
+    for sym in ["SPY", "QQQ", "SMH"]:
+        try:
+            info = yf.Ticker(sym).info
+            fwd_pe = info.get("forwardPE")
+            if fwd_pe is not None and float(fwd_pe) > 0:
+                result[sym.lower()] = round(float(fwd_pe), 1)
+                log(f"Forward P/E {sym}: {result[sym.lower()]}x")
+            else:
+                log(f"WARN Forward P/E {sym}: forwardPE={fwd_pe} (not available or zero)")
+        except Exception as e:
+            log(f"WARN Forward P/E {sym}: {e}")
+    return result
+
+
+# ── FRED ────────────────────────────────────────────────────────────────────────────────────────
 
 def fred_series(series_id):
     """
@@ -187,7 +211,7 @@ def fred_series(series_id):
         return []
 
 
-# ── CNN Fear & Greed ───────────────────────────────────────────────────────────────────────────
+# ── CNN Fear & Greed ────────────────────────────────────────────────────────────────────────────────────
 
 
 def fetch_multpl_cape():
@@ -267,7 +291,7 @@ def fetch_cnn():
         return None, None, []
 
 
-# ── Snapshot helpers ───────────────────────────────────────────────────────────────────────────────
+# ── Snapshot helpers ───────────────────────────────────────────────────────────────────────────────────────────
 
 def set_series(snap, key, series, max_bars):
     """Replace closes/timestamps in snap[key] with time series data."""
@@ -297,7 +321,7 @@ def prepend_price(snap, key, price, now_ms, max_bars=None):
     snap[key]["timestamps"] = tss
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────────────────
+# ── Main ────────────────────────────────────────────────────────────────────────────────────
 
 def main():
     # Load snapshot (with defensive fallback for accidental base64 encoding)
@@ -323,7 +347,7 @@ def main():
                     tzinfo=datetime.timezone.utc).timestamp() * 1000)
     today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-    # ── 1. GLOBAL_QUOTE (AV) — SPY, QQQ, SMH, SPX, IXIC only ────────────────────────
+    # ── 1. GLOBAL_QUOTE (AV) — SPY, QQQ, SMH, SPX, IXIC only ────────────────────────────────────
     # NOTE: ^VIX, ^TNX, DX-Y.NYB removed from AV — unreliable since May 2026, now via yfinance
     GQ_SYMBOLS = [
         ("SPY",  "spy",  True),
@@ -345,7 +369,7 @@ def main():
                 snap[key]["previousClose"] = prev
         time.sleep(RATE_SLEEP)
 
-    # ── 2. TIME_SERIES_DAILY (AV) ─────────────────────────────────────────────────────
+    # ── 2. TIME_SERIES_DAILY (AV) ──────────────────────────────────────────────────────────────────────────────────
     # NOTE: ^TNX removed — AV no longer returns reliable data for it (May 2026)
     TS_SYMBOLS = [
         ("SPY", "spy", 250, "full"),
@@ -371,7 +395,7 @@ def main():
         price = gq_cache.get(key, (None, None))[0]
         prepend_price(snap, key, price, now_ms)
 
-    # ── 2b. VIX via yfinance (replaces AV ^VIX which stopped working May 2026) ─────────
+    # ── 2b. VIX via yfinance (replaces AV ^VIX which stopped working May 2026) ─────────────────
     log("yfinance ^VIX …")
     vix_price, vix_series = yfinance_vix(max_bars=100)
     if vix_series:
@@ -389,7 +413,7 @@ def main():
     else:
         log("WARN VIX: yfinance failed, keeping existing snapshot values")
 
-    # ── 2c. TNX via yfinance (replaces AV ^TNX which stopped working May 2026) ─────────
+    # ── 2c. TNX via yfinance (replaces AV ^TNX which stopped working May 2026) ─────────────────
     log("yfinance ^TNX …")
     tnx_price, tnx_series = yfinance_tnx(max_bars=252)
     if tnx_series:
@@ -407,7 +431,7 @@ def main():
     else:
         log("WARN TNX: yfinance failed, keeping existing snapshot values")
 
-    # ── 2d. COPPER via yfinance ───────────────────────────────────────────────────────────
+    # ── 2d. COPPER via yfinance ──────────────────────────────────────────────────────────────────────
     log("yfinance HG=F (Copper) …")
     copper_price, copper_series = yfinance_copper(max_bars=100)
     if copper_series:
@@ -423,7 +447,7 @@ def main():
     else:
         log("WARN copper: no data from yfinance, keeping existing snapshot values")
 
-    # ── 2e. DXY via yfinance ─────────────────────────────────────────────────────────────
+    # ── 2e. DXY via yfinance ───────────────────────────────────────────────────────────────────────
     log("yfinance DX-Y.NYB (DXY) …")
     dxy_price, dxy_series = yfinance_dxy(max_bars=252)
     if dxy_series:
@@ -443,7 +467,7 @@ def main():
         prepend_price(snap, "dxy", price, now_ms, max_bars=252)
         log("WARN DXY: yfinance failed, using GLOBAL_QUOTE fallback")
 
-    # ── 2f. USD/TWD via yfinance ──────────────────────────────────────────────────────────
+    # ── 2f. USD/TWD via yfinance ──────────────────────────────────────────────────────────────────────
     log("yfinance TWD=X (USD/TWD) …")
     if HAS_YF:
         try:
@@ -484,7 +508,19 @@ def main():
     else:
         log("WARN yfinance not installed, skipping USD/TWD")
 
-    # ── 3. FRED ─────────────────────────────────────────────────────────────────────────────────────
+    # ── 2g. Forward P/E via yfinance (SPY, QQQ, SMH) ───────────────────────────────────────────
+    log("yfinance Forward P/E (SPY, QQQ, SMH) …")
+    fwd_pe_data = fetch_forward_pe()
+    if fwd_pe_data:
+        if "forwardPE" not in snap:
+            snap["forwardPE"] = {}
+        snap["forwardPE"].update(fwd_pe_data)
+        snap["forwardPE"]["updatedAt"] = today_str
+        log(f"Forward P/E stored: SPY={fwd_pe_data.get('spy')}x QQQ={fwd_pe_data.get('qqq')}x SMH={fwd_pe_data.get('smh')}x")
+    else:
+        log("WARN Forward P/E: no data fetched, keeping existing snapshot values")
+
+    # ── 3. FRED ────────────────────────────────────────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) …")
     hy_rows = fred_series("BAMLH0A0HYM2")
     if hy_rows:
@@ -508,7 +544,7 @@ def main():
         existing.update(new_hist)
         snap["shiller"]["history"] = existing
 
-    # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────────────────────
+    # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────────────────────────────────────
     log("CNN Fear & Greed …")
     score, rating, fng_hist = fetch_cnn()
     if score is not None:
@@ -523,7 +559,7 @@ def main():
             snap["fearGreed"]["history"] = (
                 new_entries + snap["fearGreed"].get("history", []))
 
-    # ── 5. Finalize & write ───────────────────────────────────────────────────────────────────
+    # ── 5. Finalize & write ───────────────────────────────────────────────────────────────────────────────────
     snap["timestamp"] = now_ms
     with open(SNAPSHOT, "w") as f:
         json.dump(snap, f, separators=(",", ":"))
