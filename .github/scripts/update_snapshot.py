@@ -27,7 +27,7 @@ try:
 except ImportError:
     HAS_YF = False
 
-# ── Config ────────────────────────────────────────────────────────────────────────────────────
+# ── Config ─────────────────────────────────────────────────────────────────────
 
 AV_KEY   = os.environ.get("AV_KEY", "G82DB8ZUK7E0FBKV")
 SNAPSHOT = "market-data-snapshot.json"
@@ -38,7 +38,7 @@ CNN_URL  = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
 # Alpha Vantage free tier: 5 requests/min, 25/day → sleep 15s between calls
 RATE_SLEEP = 15
 
-# ── Utilities ────────────────────────────────────────────────────────────────────────────────────
+# ── Utilities ──────────────────────────────────────────────────────────────────
 
 def log(msg):
     ts = datetime.datetime.utcnow().strftime("%H:%M:%S")
@@ -46,13 +46,13 @@ def log(msg):
 
 
 def date_to_ms(date_str):
-    "'YYYY-MM-DD' → UTC midnight milliseconds (int)."
+    """'YYYY-MM-DD' → UTC midnight milliseconds (int)."""
     dt = datetime.datetime.strptime(date_str, "%Y-%m-%d").replace(
         tzinfo=datetime.timezone.utc)
     return int(dt.timestamp() * 1000)
 
 
-# ── Alpha Vantage ────────────────────────────────────────────────────────────────────────────────────
+# ── Alpha Vantage ──────────────────────────────────────────────────────────────
 
 def av_global_quote(symbol):
     """Return (price: float|None, prev_close: float|None)."""
@@ -61,8 +61,8 @@ def av_global_quote(symbol):
             function="GLOBAL_QUOTE", symbol=symbol, apikey=AV_KEY), timeout=20)
         r.raise_for_status()
         gq = r.json().get("Global Quote", {})
-        price = float(gq["05. price"])           if gq.get("05. price")       else None
-        prev  = float(gq["08. previous close"])  if gq.get("08. previous close") else None
+        price = float(gq["05. price"])           if gq.get("05. price")           else None
+        prev  = float(gq["08. previous close"])  if gq.get("08. previous close")  else None
         return price, prev
     except Exception as e:
         log(f"WARN GLOBAL_QUOTE({symbol}): {e}")
@@ -92,7 +92,7 @@ def av_time_series(symbol, outputsize="compact"):
         return []
 
 
-# ── yfinance helpers ────────────────────────────────────────────────────────────────────────────────────
+# ── yfinance helpers ───────────────────────────────────────────────────────────
 
 def yfinance_ticker(yf_symbol, period="1y", max_bars=252, label=None):
     """
@@ -161,65 +161,143 @@ def yfinance_tnx(max_bars=252):
 
 def fetch_forward_pe():
     """
-    Fetch PE Ratio for SPY, QQQ, SMH from stockanalysis.com (server-side rendered).
-    Returns dict {"spy": float, "qqq": float, "smh": float} with available values.
-    Data is the trailing PE as displayed on each ETF overview page.
-    Sources:
-      SPY: https://stockanalysis.com/etf/spy/  -> "SPY(stockanalysis)"
-      QQQ: https://stockanalysis.com/etf/qqq/  -> "QQQ(stockanalysis)"
-      SMH: https://stockanalysis.com/etf/smh/  -> "SMH(stockanalysis)"
+    Fetch TRUE Forward P/E (NTM = Next 12 Months analyst consensus) for SPY, QQQ, SMH.
+
+    Primary source: finviz.com (server-side rendered HTML, no JavaScript required).
+      finviz shows NTM analyst consensus Forward P/E for major ETFs. This is the
+      TRUE forward PE (price / NTM consensus EPS), NOT trailing PE.
+      Rejected alternatives:
+        - stockanalysis.com: shows TRAILING PE only (not NTM forward)
+        - wsj.com: HTTP 403 blocked
+        - multpl.com forward PE page: JS-rendered (empty without JS)
+        - vaneck.com, invesco.com: JS-rendered
+        - yfinance .info.get('forwardPE'): returns None for ETFs
+      finviz data source for ETFs:
+        SPY -> https://finviz.com/quote.ashx?t=SPY  (S&P 500 NTM consensus)
+        QQQ -> https://finviz.com/quote.ashx?t=QQQ  (Nasdaq-100 NTM consensus)
+        SMH -> https://finviz.com/quote.ashx?t=SMH  (Semiconductor NTM consensus)
+
+    Fallback for SPY (if finviz fails):
+      Compute Forward PE = S&P 500 index price / NTM EPS estimate.
+        - S&P 500 index price via yfinance ^GSPC
+        - NTM EPS from https://www.multpl.com/s-p-500-eps-estimate (plain HTML)
+
+    Returns {"spy": float|None, "qqq": float|None, "smh": float|None}
     """
     import re as _re
-    result = {}
+
     UA = (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
-    sources = [
-        ("spy", "https://stockanalysis.com/etf/spy/", "SPY(stockanalysis)"),
-        ("qqq", "https://stockanalysis.com/etf/qqq/", "QQQ(stockanalysis)"),
-        ("smh", "https://stockanalysis.com/etf/smh/", "SMH(stockanalysis)"),
-    ]
-    for key, url, label in sources:
+    headers = {
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://www.google.com/",
+    }
+
+    result = {"spy": None, "qqq": None, "smh": None}
+
+    # ── Primary: finviz.com ────────────────────────────────────────────────────
+    # finviz.com renders its fundamental snapshot table server-side (no JS needed).
+    # "Forward P/E" = NTM analyst consensus EPS estimate ÷ current price.
+    # For major ETFs (SPY/QQQ/SMH), finviz sources this from the underlying
+    # index/holdings weighted-average forward earnings estimates.
+    for key, ticker in [("spy", "SPY"), ("qqq", "QQQ"), ("smh", "SMH")]:
+        url = f"https://finviz.com/quote.ashx?t={ticker}"
         try:
-            r = requests.get(url, headers={"User-Agent": UA}, timeout=20)
+            r = requests.get(url, headers=headers, timeout=20)
             r.raise_for_status()
             html = r.text
             val = None
-            # Pattern 1: JSON/data attribute embedded in page  e.g. "peRatio":26.78
-            m = _re.search(r'"peRatio"\s*:\s*"?([\d]+\.[\d]+)"?', html)
+
+            # Pattern A: value directly in adjacent <td> (standard finviz layout)
+            # HTML: ...Forward P/E</td><td class="snapshot-td2b">21.45</td>...
+            m = _re.search(
+                r"Forward P/E</td>\s*<td[^>]*>\s*([\d]+\.[\d]+)",
+                html, _re.IGNORECASE
+            )
             if m:
                 val = float(m.group(1))
-                log(f"{label} PE via JSON pattern: {val}")
+
             if val is None:
-                # Pattern 2: HTML table cell  >PE Ratio</td>...<td...>26.78</td>
+                # Pattern B: value inside a child element (<b>, <span>, <a>, etc.)
+                # HTML: ...Forward P/E</td><td ...><b>21.45</b></td>...
                 m = _re.search(
-                    r'PE\s*Ratio\s*</td>\s*<td[^>]*>\s*([\d]+\.[\d]+)\s*</td>',
+                    r"Forward P/E</td>\s*<td[^>]*>\s*<[^/][^>]*>\s*([\d]+\.[\d]+)",
                     html, _re.IGNORECASE
                 )
                 if m:
                     val = float(m.group(1))
-                    log(f"{label} PE via table pattern: {val}")
+
             if val is None:
-                # Pattern 3: broader fallback — "PE Ratio" then first decimal within 80 chars
+                # Pattern C: broader scan — find first decimal number within 250 chars
                 m = _re.search(
-                    r'PE\s*Ratio[^<\d]{0,80}([\d]+\.[\d]{1,2})',
+                    r"Forward P/E.{0,250}?([\d]{1,3}\.[\d]{1,2})",
                     html, _re.IGNORECASE | _re.DOTALL
                 )
                 if m:
                     val = float(m.group(1))
-                    log(f"{label} PE via fallback pattern: {val}")
-            if val is not None and val > 0:
+
+            if val is not None and 5.0 < val < 200.0:
                 result[key] = round(val, 1)
-                log(f"{label} PE: {result[key]}x")
+                log(f"finviz {ticker} Forward P/E: {result[key]}x  [NTM consensus]")
             else:
-                log(f"WARN {label}: PE Ratio not found in page")
+                log(f"WARN finviz {ticker}: Forward P/E not found or out of range (got {val})")
+
         except Exception as e:
-            log(f"WARN {label}: {e}")
+            log(f"WARN finviz {ticker}: {e}")
+
+    # ── Fallback for SPY: compute from S&P 500 index price + NTM EPS estimate ─
+    # Only runs if finviz failed for SPY.
+    # multpl.com/s-p-500-eps-estimate publishes analyst consensus NTM EPS (plain HTML).
+    # Forward PE = S&P 500 index level / NTM EPS estimate.
+    if result["spy"] is None:
+        log("SPY forward PE fallback: multpl.com NTM EPS + yfinance ^GSPC ...")
+        try:
+            eps_r = requests.get(
+                "https://www.multpl.com/s-p-500-eps-estimate",
+                headers=headers, timeout=15
+            )
+            if eps_r.status_code == 200:
+                html = eps_r.text
+                # multpl.com pattern: <div id="current">270.50</div>
+                m = _re.search(
+                    r"""id=["'](current|value)["'][^>]*>[\s\S]{0,150}?([\d]{2,3}\.[\d]{0,2})""",
+                    html
+                )
+                if not m:
+                    # Broader: first 3-digit decimal ~200-350 (EPS range)
+                    m = _re.search(r">(2\d\d\.[\d]{1,2})<", html)
+                if m:
+                    grp = m.lastindex
+                    forward_eps = float(m.group(grp))
+                    log(f"multpl.com NTM EPS: ${forward_eps}")
+                    if HAS_YF:
+                        try:
+                            spx_price = yf.Ticker("^GSPC").fast_info.last_price
+                            if spx_price and spx_price > 1000 and forward_eps > 0:
+                                fwd_pe = round(spx_price / forward_eps, 1)
+                                if 10.0 < fwd_pe < 100.0:
+                                    result["spy"] = fwd_pe
+                                    log(
+                                        f"SPY Forward P/E (computed): {fwd_pe}x "
+                                        f"[S&P={spx_price:.0f} / NTM EPS=${forward_eps}]"
+                                    )
+                        except Exception as e2:
+                            log(f"WARN yfinance ^GSPC fallback: {e2}")
+                else:
+                    log("WARN multpl.com EPS: could not parse NTM EPS value")
+            else:
+                log(f"WARN multpl.com EPS: HTTP {eps_r.status_code}")
+        except Exception as e:
+            log(f"WARN multpl.com EPS fallback: {e}")
+
     return result
 
 
-# ── FRED ────────────────────────────────────────────────────────────────────────────────────────
+# ── FRED ───────────────────────────────────────────────────────────────────────
 
 def fred_series(series_id):
     """
@@ -247,9 +325,6 @@ def fred_series(series_id):
         return []
 
 
-# ── CNN Fear & Greed ────────────────────────────────────────────────────────────────────────────────────
-
-
 def fetch_multpl_cape():
     """Fetch Shiller CAPE (current + monthly history) from multpl.com."""
     import re
@@ -262,9 +337,10 @@ def fetch_multpl_cape():
             headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
         )
         r.raise_for_status()
-        match = re.search(r'id=[\"\'](current|value)[\"\'](.*?)</b>\s*([\d.]+)', r.text, re.DOTALL)
+        # Use double-quoted raw string to avoid single-quote escaping issues
+        match = re.search(r"""id=["'](current|value)["'].*?</b>\s*([\d.]+)""", r.text, re.DOTALL)
         if match:
-            result["current"] = float(match.group(3))
+            result["current"] = float(match.group(2))
             log(f"multpl.com CAPE current OK: {result['current']}")
         else:
             log("WARN multpl.com CAPE: could not parse current value")
@@ -281,7 +357,7 @@ def fetch_multpl_cape():
         r2.raise_for_status()
         # Parse table rows: <td>Jan 1, 2026</td><td>42.08</td>
         rows = re.findall(
-            r'<td[^>]*>\s*(\w+ \d+,\s*\d{4})\s*</td>\s*<td[^>]*>\s*([\d.]+)\s*</td>',
+            r"<td[^>]*>\s*(\w+ \d+,\s*\d{4})\s*</td>\s*<td[^>]*>\s*([\d.]+)\s*</td>",
             r2.text
         )
         from datetime import datetime
@@ -302,6 +378,7 @@ def fetch_multpl_cape():
         log(f"WARN multpl.com CAPE history: {e}")
 
     return result
+
 
 def fetch_cnn():
     """Return (score: int|None, rating: str|None, history: list) newest-first."""
@@ -327,7 +404,7 @@ def fetch_cnn():
         return None, None, []
 
 
-# ── Snapshot helpers ───────────────────────────────────────────────────────────────────────────────────────────
+# ── Snapshot helpers ───────────────────────────────────────────────────────────
 
 def set_series(snap, key, series, max_bars):
     """Replace closes/timestamps in snap[key] with time series data."""
@@ -357,7 +434,7 @@ def prepend_price(snap, key, price, now_ms, max_bars=None):
     snap[key]["timestamps"] = tss
 
 
-# ── Main ────────────────────────────────────────────────────────────────────────────────────
+# ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     # Load snapshot (with defensive fallback for accidental base64 encoding)
@@ -383,18 +460,18 @@ def main():
                     tzinfo=datetime.timezone.utc).timestamp() * 1000)
     today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-    # ── 1. GLOBAL_QUOTE (AV) — SPY, QQQ, SMH, SPX, IXIC only ────────────────────────────────────
-    # NOTE: ^VIX, ^TNX, DX-Y.NYB removed from AV — unreliable since May 2026, now via yfinance
+    # ── 1. GLOBAL_QUOTE (AV) ──────────────────────────────────────────────────
+    # NOTE: ^VIX, ^TNX, DX-Y.NYB removed from AV — unreliable since May 2026
     GQ_SYMBOLS = [
-        ("SPY",  "spy",  True),
-        ("QQQ",  "qqq",  True),
-        ("SMH",  "smh",  True),
-        ("^GSPC", "spx", True),
+        ("SPY",   "spy",  True),
+        ("QQQ",   "qqq",  True),
+        ("SMH",   "smh",  True),
+        ("^GSPC", "spx",  True),
         ("^IXIC", "ixic", True),
     ]
     gq_cache = {}
     for sym, key, has_prev in GQ_SYMBOLS:
-        log(f"GLOBAL_QUOTE {sym} …")
+        log(f"GLOBAL_QUOTE {sym} ...")
         price, prev = av_global_quote(sym)
         gq_cache[key] = (price, prev)
         if price is not None:
@@ -405,15 +482,14 @@ def main():
                 snap[key]["previousClose"] = prev
         time.sleep(RATE_SLEEP)
 
-    # ── 2. TIME_SERIES_DAILY (AV) ──────────────────────────────────────────────────────────────────────────────────
-    # NOTE: ^TNX removed — AV no longer returns reliable data for it (May 2026)
+    # ── 2. TIME_SERIES_DAILY (AV) ─────────────────────────────────────────────
     TS_SYMBOLS = [
         ("SPY", "spy", 250, "full"),
         ("QQQ", "qqq", 100, "compact"),
         ("SMH", "smh", 100, "compact"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
-        log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) …")
+        log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) ...")
         series = av_time_series(sym, size)
         if series:
             set_series(snap, key, series, max_bars)
@@ -431,8 +507,8 @@ def main():
         price = gq_cache.get(key, (None, None))[0]
         prepend_price(snap, key, price, now_ms)
 
-    # ── 2b. VIX via yfinance (replaces AV ^VIX which stopped working May 2026) ─────────────────
-    log("yfinance ^VIX …")
+    # ── 2b. VIX via yfinance ──────────────────────────────────────────────────
+    log("yfinance ^VIX ...")
     vix_price, vix_series = yfinance_vix(max_bars=100)
     if vix_series:
         set_series(snap, "vix", vix_series, 100)
@@ -449,8 +525,8 @@ def main():
     else:
         log("WARN VIX: yfinance failed, keeping existing snapshot values")
 
-    # ── 2c. TNX via yfinance (replaces AV ^TNX which stopped working May 2026) ─────────────────
-    log("yfinance ^TNX …")
+    # ── 2c. TNX via yfinance ──────────────────────────────────────────────────
+    log("yfinance ^TNX ...")
     tnx_price, tnx_series = yfinance_tnx(max_bars=252)
     if tnx_series:
         set_series(snap, "tnx", tnx_series, 252)
@@ -467,8 +543,8 @@ def main():
     else:
         log("WARN TNX: yfinance failed, keeping existing snapshot values")
 
-    # ── 2d. COPPER via yfinance ──────────────────────────────────────────────────────────────────────
-    log("yfinance HG=F (Copper) …")
+    # ── 2d. COPPER via yfinance ───────────────────────────────────────────────
+    log("yfinance HG=F (Copper) ...")
     copper_price, copper_series = yfinance_copper(max_bars=100)
     if copper_series:
         set_series(snap, "copper", copper_series, 100)
@@ -483,8 +559,8 @@ def main():
     else:
         log("WARN copper: no data from yfinance, keeping existing snapshot values")
 
-    # ── 2e. DXY via yfinance ───────────────────────────────────────────────────────────────────────
-    log("yfinance DX-Y.NYB (DXY) …")
+    # ── 2e. DXY via yfinance ──────────────────────────────────────────────────
+    log("yfinance DX-Y.NYB (DXY) ...")
     dxy_price, dxy_series = yfinance_dxy(max_bars=252)
     if dxy_series:
         set_series(snap, "dxy", dxy_series, 252)
@@ -503,8 +579,8 @@ def main():
         prepend_price(snap, "dxy", price, now_ms, max_bars=252)
         log("WARN DXY: yfinance failed, using GLOBAL_QUOTE fallback")
 
-    # ── 2f. USD/TWD via yfinance ──────────────────────────────────────────────────────────────────────
-    log("yfinance TWD=X (USD/TWD) …")
+    # ── 2f. USD/TWD via yfinance ──────────────────────────────────────────────
+    log("yfinance TWD=X (USD/TWD) ...")
     if HAS_YF:
         try:
             twd_ticker = yf.Ticker("TWD=X")
@@ -540,28 +616,34 @@ def main():
                 log("WARN TWD=X: no data from yfinance, keeping existing")
         except Exception as e:
             log(f"WARN yfinance TWD=X: {e}")
-            import traceback; traceback.print_exc()
+            traceback.print_exc()
     else:
         log("WARN yfinance not installed, skipping USD/TWD")
 
-    # ── 2g. PE Ratio via stockanalysis.com (SPY, QQQ, SMH) ─────────────────────────────────────
-    log("PE Ratio (SPY, QQQ, SMH) via stockanalysis.com …")
+    # ── 2g. TRUE Forward P/E via finviz.com (SPY, QQQ, SMH) ──────────────────
+    # NTM consensus forward PE, NOT trailing. Primary: finviz. Fallback: computed.
+    log("Forward P/E (SPY, QQQ, SMH) via finviz.com [NTM analyst consensus] ...")
     fwd_pe_data = fetch_forward_pe()
     if fwd_pe_data:
         if "forwardPE" not in snap:
             snap["forwardPE"] = {}
         snap["forwardPE"].update(fwd_pe_data)
         snap["forwardPE"]["updatedAt"] = today_str
-        log(f"Forward P/E stored: SPY={fwd_pe_data.get('spy')}x QQQ={fwd_pe_data.get('qqq')}x SMH={fwd_pe_data.get('smh')}x")
+        log(
+            f"Forward P/E stored: "
+            f"SPY={fwd_pe_data.get('spy')}x "
+            f"QQQ={fwd_pe_data.get('qqq')}x "
+            f"SMH={fwd_pe_data.get('smh')}x"
+        )
     else:
         log("WARN Forward P/E: no data fetched, keeping existing snapshot values")
 
-    # ── 3. FRED ────────────────────────────────────────────────────────────────────────────────────────────────
-    log("FRED BAMLH0A0HYM2 (HY OAS) …")
+    # ── 3. FRED ───────────────────────────────────────────────────────────────
+    log("FRED BAMLH0A0HYM2 (HY OAS) ...")
     hy_rows = fred_series("BAMLH0A0HYM2")
     if hy_rows:
         latest_hy = hy_rows[-1]
-        hy_bp = int(round(latest_hy["value"] * 100))  # % → basis points (int)
+        hy_bp = int(round(latest_hy["value"] * 100))  # % → basis points
         if "hyOAS" not in snap:
             snap["hyOAS"] = {"current": hy_bp, "history": []}
         snap["hyOAS"]["current"] = hy_bp
@@ -571,7 +653,7 @@ def main():
                 [{"date": today_str, "value": hy_bp}]
                 + snap["hyOAS"].get("history", []))
 
-    log("Shiller CAPE (multpl.com, daily) …")
+    log("Shiller CAPE (multpl.com) ...")
     cape_data = fetch_multpl_cape()
     snap["shiller"]["current"] = cape_data.get("current")
     new_hist = cape_data.get("history", {})
@@ -580,8 +662,8 @@ def main():
         existing.update(new_hist)
         snap["shiller"]["history"] = existing
 
-    # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────────────────────────────────────
-    log("CNN Fear & Greed …")
+    # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────
+    log("CNN Fear & Greed ...")
     score, rating, fng_hist = fetch_cnn()
     if score is not None:
         if "fearGreed" not in snap:
@@ -595,7 +677,7 @@ def main():
             snap["fearGreed"]["history"] = (
                 new_entries + snap["fearGreed"].get("history", []))
 
-    # ── 5. Finalize & write ───────────────────────────────────────────────────────────────────────────────────
+    # ── 5. Finalize & write ───────────────────────────────────────────────────
     snap["timestamp"] = now_ms
     with open(SNAPSHOT, "w") as f:
         json.dump(snap, f, separators=(",", ":"))
