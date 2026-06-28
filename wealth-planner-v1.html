@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>財富規劃工具 v1</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #f8f8f6;
+  --surface: #ffffff;
+  --border: rgba(0,0,0,0.10);
+  --text: #0b0b0b;
+  --text-sec: #52514e;
+  --text-muted: #898781;
+  --accent: #2a78d6;
+  --accent-bg: #e6f1fb;
+  --success: #1baf7a;
+  --success-bg: #eaf3de;
+  --warning: #eda100;
+  --warning-bg: #faeeda;
+  --danger: #e24b4a;
+  --danger-bg: #fcebeb;
+  --radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19;
+    --surface: #242422;
+    --border: rgba(255,255,255,0.10);
+    --text: #ffffff;
+    --text-sec: #c3c2b7;
+    --text-muted: #898781;
+    --accent: #3987e5;
+    --accent-bg: #0c447c33;
+    --success: #199e70;
+    --success-bg: #08504133;
+    --warning: #c98500;
+    --warning-bg: #63380633;
+    --danger: #e66767;
+    --danger-bg: #50131333;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.app { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 1.5rem; }
+.progress-wrap { display: flex; gap: 6px; margin-bottom: 1.5rem; }
+.progress-step { flex: 1; height: 4px; background: var(--border); border-radius: 2px; transition: background 0.3s; }
+.progress-step.done { background: var(--accent); }
+.progress-step.active { background: var(--accent); opacity: 0.5; }
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+.card-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+.card-sub { font-size: 13px; color: var(--text-sec); margin-bottom: 1rem; line-height: 1.5; }
+.option-list { display: flex; flex-direction: column; gap: 8px; }
+.option-btn { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text); text-align: left; transition: border-color 0.2s, background 0.2s; width: 100%; flex-direction: column; align-items: flex-start; }
+.option-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
+.option-btn.selected { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); font-weight: 500; }
+.option-btn .opt-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: block; }
+.nav { display: flex; gap: 8px; margin-top: 1.25rem; }
+.btn { flex: 1; padding: 11px; border: 0.5px solid var(--border); border-radius: var(--radius); background: transparent; color: var(--text); font-size: 14px; cursor: pointer; transition: background 0.2s; }
+.btn:hover { background: var(--accent-bg); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: #185fa5; border-color: #185fa5; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 4px; margin-bottom: 8px; }
+.badge-blue { background: var(--accent-bg); color: var(--accent); }
+.badge-green { background: var(--success-bg); color: var(--success); }
+.badge-amber { background: var(--warning-bg); color: var(--warning); }
+.badge-red { background: var(--danger-bg); color: var(--danger); }
+.result-hidden { display: none; }
+.investor-type { font-size: 22px; font-weight: 500; margin: 4px 0; }
+.investor-desc { font-size: 13px; color: var(--text-sec); line-height: 1.6; }
+.chart-wrap { position: relative; width: 200px; height: 200px; margin: 1rem auto; }
+.slider-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.slider-label { display: flex; justify-content: space-between; font-size: 13px; }
+.slider-name { font-weight: 500; }
+.slider-val { color: var(--accent); font-weight: 500; }
+input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.total-indicator { font-size: 12px; text-align: right; color: var(--text-muted); margin-top: 4px; }
+.total-indicator.ok { color: var(--success); }
+.total-indicator.err { color: var(--danger); }
+.return-card { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius); margin-top: 12px; }
+.return-label { font-size: 12px; color: var(--text-muted); }
+.return-val { font-size: 18px; font-weight: 500; color: var(--accent); }
+.ret-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.ret-input-wrap { display: flex; flex-direction: column; gap: 4px; }
+.ret-input-label { font-size: 12px; color: var(--text-muted); }
+.ret-input { padding: 8px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 14px; width: 100%; }
+.ret-result { text-align: center; padding: 16px; background: var(--bg); border-radius: var(--radius); }
+.ret-years { font-size: 32px; font-weight: 500; color: var(--accent); }
+.ret-years-label { font-size: 12px; color: var(--text-muted); }
+.progress-bar-wrap { margin-top: 12px; }
+.progress-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.progress-bar-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.5s; }
+.alert { padding: 14px; border-radius: var(--radius); margin-top: 8px; }
+.alert-amber { background: var(--warning-bg); border: 0.5px solid var(--warning); }
+.alert-blue { background: var(--accent-bg); border: 0.5px solid var(--accent); }
+.alert-title { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+.alert-body { font-size: 13px; color: var(--text-sec); line-height: 1.6; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-sec); }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>財富規劃工具</h1>
+  <p class="subtitle">基於 Nick Maggiulli《The Wealth Ladder》框架</p>
+  <div class="progress-wrap" id="progressBar"></div>
+  <div id="questions"></div>
+  <div id="results" class="result-hidden"></div>
+</div>
+<script>
+const QUESTIONS = [
+  {
+    id: 'wealth',
+    title: '你目前的淨資產大約是多少？',
+    sub: '淨資產 = 所有資產（現金、投資、房產）− 負債（貸款、信用卡債）',
+    options: [
+      { value: 1, label: '< $10,000', sub: '第一層 · 起步階段' },
+      { value: 2, label: '$10,000 – $100,000', sub: '第二層 · Grocery Freedom' },
+      { value: 3, label: '$100,000 – $1,000,000', sub: '第三層 · Restaurant Freedom' },
+      { value: 4, label: '$1,000,000 – $10,000,000', sub: '第四層 · Travel Freedom' },
+      { value: 5, label: '$10,000,000 – $100,000,000', sub: '第五層 · Financial Independence' },
+      { value: 6, label: '> $100,000,000', sub: '第六層 · Generational Wealth' },
+    ]
+  },
+  {
+    id: 'risk',
+    title: '如果投資帳面虧損了 30%，你會怎麼做？',
+    sub: '誠實回答——這決定了適合你的風險等級',
+    options: [
+      { value: 'conservative', label: '立刻賣掉，先保住本金', sub: '保守型' },
+      { value: 'moderate', label: '感到擔心，但繼續持有觀察', sub: '穩健型' },
+      { value: 'aggressive', label: '視為難得機會，考慮加碼買入', sub: '積極型' },
+    ]
+  },
+  {
+    id: 'goal',
+    title: '你的主要投資目標是什麼？',
+    sub: '選擇最符合你現在想法的選項',
+    options: [
+      { value: 'retirement', label: '退休被動收入', sub: '長期 · 財富自由' },
+      { value: 'property', label: '買房 / 大額購置', sub: '中期 · 資產累積' },
+      { value: 'education', label: '子女教育基金', sub: '中期 · 目標導向' },
+      { value: 'growth', label: '財富最大化', sub: '長期 · 積極增長' },
+    ]
+  },
+  {
+    id: 'horizon',
+    title: '你預計幾年後會需要動用這筆投資？',
+    sub: '時間軸直接影響你能承受的風險等級',
+    options: [
+      { value: 'short', label: '3 年以內', sub: '短期 · 需保守配置' },
+      { value: 'medium', label: '3 – 10 年', sub: '中期 · 均衡配置' },
+      { value: 'long', label: '10 – 20 年', sub: '長期 · 成長配置' },
+      { value: 'vlong', label: '20 年以上', sub: '超長期 · 積極配置' },
+    ]
+  },
+  {
+    id: 'monthly',
+    title: '每個月你能穩定投入多少？',
+    sub: '定期定額是長期財富積累最有效的方法之一',
+    options: [
+      { value: 250, label: '< $500', sub: '每月約 $250' },
+      { value: 1250, label: '$500 – $2,000', sub: '每月約 $1,250' },
+      { value: 3500, label: '$2,000 – $5,000', sub: '每月約 $3,500' },
+      { value: 7500, label: '$5,000 以上', sub: '每月約 $7,500' },
+    ]
+  }
+];
+const ALLOCATIONS = {
+  1: { type: 'special-1' },
+  2: { conservative: [20,0,0,50,30], moderate: [45,0,0,40,15], aggressive: [20,20,0,30,10] },
+  3: { conservative: [50,0,0,40,10], moderate: [30,40,0,25,5], aggressive: [0,44,31,20,5] },
+  4: { conservative: [40,20,0,35,5], moderate: [0,44,31,20,5], aggressive: [0,50,40,10,0] },
+  5: { type: 'special-5', base: [30,20,0,40,10] },
+  6: { type: 'special-5', base: [30,20,0,40,10] },
+};
+const TICKER_NAMES = ['SPY','QQQ','SMH','BOXX','現金'];
+const TICKER_RETURNS = [10.5,14,18,5,2];
+const TICKER_COLORS = ['#2a78d6','#1baf7a','#eda100','#534AB7','#888780'];
+const WEALTH_LABELS = {
+  1: { badge: '第一層', freedom: '起步階段', color: 'badge-red' },
+  2: { badge: '第二層', freedom: 'Grocery Freedom', color: 'badge-amber' },
+  3: { badge: '第三層', freedom: 'Restaurant Freedom', color: 'badge-blue' },
+  4: { badge: '第四層', freedom: 'Travel Freedom', color: 'badge-green' },
+  5: { badge: '第五層', freedom: 'Financial Independence', color: 'badge-green' },
+  6: { badge: '第六層', freedom: 'Generational Wealth', color: 'badge-green' },
+};
+const INVESTOR_TYPES = { conservative: '保守型投資人', moderate: '穩健型投資人', aggressive: '積極型投資人' };
+const WEALTH_MIDPOINTS = { 1:5000, 2:50000, 3:500000, 4:5000000, 5:50000000, 6:100000000 };
+let answers = {}, currentQ = 0, allocation = [0,0,0,0,0], chart = null;
+function renderProgress() {
+  const bar = document.getElementById('progressBar'); bar.innerHTML = '';
+  for (let i=0; i<QUESTIONS.length; i++) {
+    const s = document.createElement('div');
+    s.className = 'progress-step' + (i<currentQ?' done':i===currentQ?' active':'');
+    bar.appendChild(s);
+  }
+}
+function renderQuestion(idx) {
+  const q = QUESTIONS[idx];
+  document.getElementById('questions').innerHTML = `
+    <div class="card">
+      <div class="card-title">${q.title}</div>
+      <div class="card-sub">${q.sub}</div>
+      <div class="option-list">${q.options.map(o=>`
+        <button class="option-btn ${answers[q.id]===o.value?'selected':''}" onclick="selectOption('${q.id}',${JSON.stringify(o.value).replace(/"/g,'&quot;')},this)">
+          ${o.label}<span class="opt-label">${o.sub}</span>
+        </button>`).join('')}</div>
+      <div class="nav">
+        <button class="btn" onclick="prevQ()" ${idx===0?'disabled':''}>← 上一題</button>
+        <button class="btn btn-primary" id="nextBtn" onclick="nextQ()" ${answers[q.id]===undefined?'disabled':''}>${idx===QUESTIONS.length-1?'查看結果 →':'下一題 →'}</button>
+      </div>
+    </div>`;
+}
+function selectOption(qId, value, el) {
+  answers[qId] = value;
+  document.querySelectorAll('.option-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('nextBtn').disabled = false;
+}
+function prevQ() { if(currentQ>0){currentQ--;renderProgress();renderQuestion(currentQ);}  }
+function nextQ() {
+  if(answers[QUESTIONS[currentQ].id]===undefined) return;
+  if(currentQ<QUESTIONS.length-1){currentQ++;renderProgress();renderQuestion(currentQ);} else showResults();
+}
+function computeAllocation() {
+  const wl=answers.wealth, risk=answers.risk, horizon=answers.horizon;
+  if(wl===1) return null;
+  if(wl>=5) return ALLOCATIONS[wl].base.slice();
+  let alloc = ALLOCATIONS[wl][risk].slice();
+  if(horizon==='short') {
+    const sp=alloc[0]+alloc[1]+alloc[2], red=Math.min(sp,20), f=red/(sp||1);
+    alloc[0]=Math.round(alloc[0]*(1-f)); alloc[1]=Math.round(alloc[1]*(1-f)); alloc[2]=Math.round(alloc[2]*(1-f));
+    alloc[3]+=Math.round(red*0.7); alloc[4]+=Math.round(red*0.3);
+    const t=alloc.reduce((a,b)=>a+b,0); if(t!==100) alloc[3]+=(100-t);
+  }
+  return alloc;
+}
+function calcExpectedReturn(alloc) {
+  if(!alloc) return [0,0];
+  const base=alloc.reduce((s,v,i)=>s+(v/100)*TICKER_RETURNS[i],0);
+  return [Math.max(0,base-2).toFixed(1),(base+2).toFixed(1)];
+}
+function calcRetirement(cur, mo, rate, target) {
+  let a=cur; const mr=rate/100/12;
+  for(let m=0;m<600;m++){a=a*(1+mr)+mo; if(a>=target) return Math.ceil(m/12);}
+  return '>50';
+}
+function showResults() {
+  document.getElementById('questions').innerHTML='';
+  document.getElementById('progressBar').innerHTML='';
+  const res=document.getElementById('results'); res.classList.remove('result-hidden');
+  const wl=answers.wealth, risk=answers.risk, wInfo=WEALTH_LABELS[wl];
+  allocation=computeAllocation();
+  if(wl===1){
+    res.innerHTML=`<div class="card"><span class="badge ${wInfo.color}">${wInfo.badge} · ${wInfo.freedom}</span><div class="investor-type">起步中的你</div><div class="investor-desc">在開始投資之前，建議先完成最重要的財務基礎。</div></div><div class="alert alert-amber"><div class="alert-title">🏦 建議先建立緊急預備金</div><div class="alert-body">在淨資產達到 $10,000 之前，投資股票的風險遠高於收益。<br><br><strong>建議步驟：</strong><br>1. 建立 3–6 個月緊急預備金（HYSA）<br>2. 清除高利率債務<br>3. 最大化 401K 雇主配對<br>4. 達到 $10,000+ 後再回來規劃投資</div></div><div style="margin-top:1rem"><button class="btn btn-primary" onclick="restart()">重新回答問卷</button></div>`;
+    return;
+  }
+  const advisorMsg=(wl>=5)?`<div class="alert alert-blue" style="margin-bottom:1rem"><div class="alert-title">💼 建議諮詢專業財務顧問</div><div class="alert-body">此資產規模建議配合稅務規劃師與財務顧問，評估信託、節稅策略與資產保全方案。以下為參考配置。</div></div>`:'';
+  const retBase=WEALTH_MIDPOINTS[wl], monthly=answers.monthly;
+  const [retLow,retHigh]=calcExpectedReturn(allocation);
+  res.innerHTML=`${advisorMsg}<div class="card"><span class="badge ${wInfo.color}">${wInfo.badge} · ${wInfo.freedom}</span><div class="investor-type">${INVESTOR_TYPES[risk]||'穩健型投資人'}</div><div class="investor-desc">根據你的財富層級與風險承受度，以下是自動計算的投資組合建議。可使用下方滑桿手動微調。</div></div><div class="card"><div class="card-title">建議配置</div><div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="投資配置圓餅圖"></canvas></div><div class="legend" id="legend"></div><div style="margin-top:1.25rem" id="sliders"></div><div class="total-indicator ok" id="totalIndicator">總計：100%</div><div class="return-card"><span class="return-label">預期年化報酬（估算）</span><span class="return-val" id="returnVal">${retLow}–${retHigh}%</span></div></div><div class="card"><div class="card-title">退休 / 目標計算器</div><div class="card-sub">根據你的配置與每月投入，估算達成目標所需時間</div><div class="ret-grid"><div class="ret-input-wrap"><label class="ret-input-label">目標金額（$）</label><input type="number" class="ret-input" id="retTarget" value="1500000" oninput="updateRetirement()"></div><div class="ret-input-wrap"><label class="ret-input-label">目前資產（$）</label><input type="number" class="ret-input" id="retCurrent" value="${retBase}" oninput="updateRetirement()"></div></div><div class="ret-result"><div class="ret-years" id="retYears">—</div><div class="ret-years-label">預計達成年份</div></div><div class="progress-bar-wrap"><div class="progress-bar-label"><span>目前進度</span><span id="retPct">—</span></div><div class="progress-bar-track"><div class="progress-bar-fill" id="retFill" style="width:0%"></div></div></div></div><div style="margin-top:0.5rem"><button class="btn" onclick="restart()">← 重新回答問卷</button></div>`;
+  buildSliders(); buildChart(); updateRetirement();
+}
+function buildSliders() {
+  const wrap=document.getElementById('sliders'), legend=document.getElementById('legend');
+  wrap.innerHTML=''; legend.innerHTML='';
+  allocation.forEach((val,i)=>{
+    if(val===0&&i<3) return;
+    const row=document.createElement('div'); row.className='slider-row';
+    row.innerHTML=`<div class="slider-label"><span class="slider-name" style="color:${TICKER_COLORS[i]}">${TICKER_NAMES[i]}</span><span class="slider-val" id="val_${i}">${val}%</span></div><input type="range" min="0" max="100" step="1" value="${val}" id="slider_${i}" oninput="onSlider(${i},this.value)">`;
+    wrap.appendChild(row);
+    if(val>0){const li=document.createElement('div');li.className='legend-item';li.id=`leg_${i}`;li.innerHTML=`<div class="legend-dot" style="background:${TICKER_COLORS[i]}"></div>${TICKER_NAMES[i]} ${val}%`;legend.appendChild(li);}
+  });
+}
+function onSlider(idx, newVal) {
+  const delta=parseInt(newVal)-allocation[idx]; allocation[idx]=parseInt(newVal);
+  const others=allocation.map((v,i)=>i).filter(i=>i!==idx&&allocation[i]>0);
+  if(others.length>0&&delta!==0){
+    let rem=-delta;
+    for(let k=0;k<others.length-1;k++){const sh=Math.round(rem/(others.length-k));allocation[others[k]]=Math.max(0,allocation[others[k]]+sh);rem-=sh;}
+    allocation[others[others.length-1]]=Math.max(0,allocation[others[others.length-1]]+rem);
+  }
+  const total=allocation.reduce((a,b)=>a+b,0);
+  const ind=document.getElementById('totalIndicator'); ind.textContent=`總計：${total}%`; ind.className='total-indicator '+(total===100?'ok':'err');
+  allocation.forEach((v,i)=>{const sl=document.getElementById(`slider_${i}`),vl=document.getElementById(`val_${i}`),ll=document.getElementById(`leg_${i}`);if(sl)sl.value=v;if(vl)vl.textContent=v+'%';if(ll)ll.innerHTML=`<div class="legend-dot" style="background:${TICKER_COLORS[i]}"></div>${TICKER_NAMES[i]} ${v}%`;});
+  updateChart(); updateReturnEstimate(); updateRetirement();
+}
+function updateReturnEstimate(){const[lo,hi]=calcExpectedReturn(allocation);document.getElementById('returnVal').textContent=`${lo}–${hi}%`;}
+function buildChart(){
+  const ctx=document.getElementById('pieChart').getContext('2d');
+  const active=allocation.map((v,i)=>({v,i})).filter(x=>x.v>0);
+  chart=new Chart(ctx,{type:'doughnut',data:{labels:active.map(x=>TICKER_NAMES[x.i]),datasets:[{data:active.map(x=>x.v),backgroundColor:active.map(x=>TICKER_COLORS[x.i]),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'60%'}});
+}
+function updateChart(){
+  if(!chart) return;
+  const active=allocation.map((v,i)=>({v,i})).filter(x=>x.v>0);
+  chart.data.labels=active.map(x=>TICKER_NAMES[x.i]);
+  chart.data.datasets[0].data=active.map(x=>x.v);
+  chart.data.datasets[0].backgroundColor=active.map(x=>TICKER_COLORS[x.i]);
+  chart.update();
+}
+function updateRetirement(){
+  const target=parseFloat(document.getElementById('retTarget').value)||1500000;
+  const current=parseFloat(document.getElementById('retCurrent').value)||0;
+  const monthly=answers.monthly||1250;
+  const[lo,hi]=calcExpectedReturn(allocation);
+  const midR=(parseFloat(lo)+parseFloat(hi))/2;
+  const years=calcRetirement(current,monthly,midR,target);
+  const pct=Math.min(100,Math.round(current/target*100));
+  document.getElementById('retYears').textContent=typeof years==='number'?years+' 年':years;
+  document.getElementById('retPct').textContent=pct+'%';
+  document.getElementById('retFill').style.width=pct+'%';
+}
+function restart(){
+  answers={};currentQ=0;allocation=[0,0,0,0,0];
+  if(chart){chart.destroy();chart=null;}
+  document.getElementById('results').classList.add('result-hidden');
+  document.getElementById('results').innerHTML='';
+  renderProgress();renderQuestion(0);
+}
+renderProgress();renderQuestion(0);
+</script>
+</body>
+</html>
