@@ -54,7 +54,7 @@ h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
 .card-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
 .card-sub { font-size: 13px; color: var(--text-sec); margin-bottom: 1rem; line-height: 1.5; }
 .option-list { display: flex; flex-direction: column; gap: 8px; }
-.option-btn { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text); text-align: left; transition: border-color 0.2s, background 0.2s; width: 100%; flex-direction: column; align-items: flex-start; }
+.option-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text); text-align: left; transition: border-color 0.2s, background 0.2s; width: 100%; }
 .option-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
 .option-btn.selected { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); font-weight: 500; }
 .option-btn .opt-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: block; }
@@ -70,7 +70,7 @@ h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
 .badge-amber { background: var(--warning-bg); color: var(--warning); }
 .badge-red { background: var(--danger-bg); color: var(--danger); }
 .result-hidden { display: none; }
-.investor-type { font-size: 22px; font-weight: 500; margin: 4px 0; }
+.investor-type { font-size: 22px; font-weight: 500; margin: 8px 0 4px; }
 .investor-desc { font-size: 13px; color: var(--text-sec); line-height: 1.6; }
 .chart-wrap { position: relative; width: 200px; height: 200px; margin: 1rem auto; }
 .slider-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
@@ -88,6 +88,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
 .ret-input-wrap { display: flex; flex-direction: column; gap: 4px; }
 .ret-input-label { font-size: 12px; color: var(--text-muted); }
 .ret-input { padding: 8px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 14px; width: 100%; }
+.ret-fmt { font-size: 11px; color: var(--accent); margin-top: 3px; }
 .ret-result { text-align: center; padding: 16px; background: var(--bg); border-radius: var(--radius); }
 .ret-years { font-size: 32px; font-weight: 500; color: var(--accent); }
 .ret-years-label { font-size: 12px; color: var(--text-muted); }
@@ -194,6 +195,12 @@ const WEALTH_LABELS = {
 const INVESTOR_TYPES = { conservative: '保守型投資人', moderate: '穩健型投資人', aggressive: '積極型投資人' };
 const WEALTH_MIDPOINTS = { 1:5000, 2:50000, 3:500000, 4:5000000, 5:50000000, 6:100000000 };
 let answers = {}, currentQ = 0, allocation = [0,0,0,0,0], chart = null;
+
+function fmt(n) {
+  if (!n || isNaN(n)) return '$0';
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
 function renderProgress() {
   const bar = document.getElementById('progressBar'); bar.innerHTML = '';
   for (let i=0; i<QUESTIONS.length; i++) {
@@ -265,7 +272,7 @@ function showResults() {
   const advisorMsg=(wl>=5)?`<div class="alert alert-blue" style="margin-bottom:1rem"><div class="alert-title">💼 建議諮詢專業財務顧問</div><div class="alert-body">此資產規模建議配合稅務規劃師與財務顧問，評估信託、節稅策略與資產保全方案。以下為參考配置。</div></div>`:'';
   const retBase=WEALTH_MIDPOINTS[wl], monthly=answers.monthly;
   const [retLow,retHigh]=calcExpectedReturn(allocation);
-  res.innerHTML=`${advisorMsg}<div class="card"><span class="badge ${wInfo.color}">${wInfo.badge} · ${wInfo.freedom}</span><div class="investor-type">${INVESTOR_TYPES[risk]||'穩健型投資人'}</div><div class="investor-desc">根據你的財富層級與風險承受度，以下是自動計算的投資組合建議。可使用下方滑桿手動微調。</div></div><div class="card"><div class="card-title">建議配置</div><div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="投資配置圓餅圖"></canvas></div><div class="legend" id="legend"></div><div style="margin-top:1.25rem" id="sliders"></div><div class="total-indicator ok" id="totalIndicator">總計：100%</div><div class="return-card"><span class="return-label">預期年化報酬（估算）</span><span class="return-val" id="returnVal">${retLow}–${retHigh}%</span></div></div><div class="card"><div class="card-title">退休 / 目標計算器</div><div class="card-sub">根據你的配置與每月投入，估算達成目標所需時間</div><div class="ret-grid"><div class="ret-input-wrap"><label class="ret-input-label">目標金額（$）</label><input type="number" class="ret-input" id="retTarget" value="1500000" oninput="updateRetirement()"></div><div class="ret-input-wrap"><label class="ret-input-label">目前資產（$）</label><input type="number" class="ret-input" id="retCurrent" value="${retBase}" oninput="updateRetirement()"></div></div><div class="ret-result"><div class="ret-years" id="retYears">—</div><div class="ret-years-label">預計達成年份</div></div><div class="progress-bar-wrap"><div class="progress-bar-label"><span>目前進度</span><span id="retPct">—</span></div><div class="progress-bar-track"><div class="progress-bar-fill" id="retFill" style="width:0%"></div></div></div></div><div style="margin-top:0.5rem"><button class="btn" onclick="restart()">← 重新回答問卷</button></div>`;
+  res.innerHTML=`${advisorMsg}<div class="card"><span class="badge ${wInfo.color}">${wInfo.badge} · ${wInfo.freedom}</span><div class="investor-type">${INVESTOR_TYPES[risk]||'穩健型投資人'}</div><div class="investor-desc">根據你的財富層級與風險承受度，以下是自動計算的投資組合建議。可使用下方滑桿手動微調。</div></div><div class="card"><div class="card-title">建議配置</div><div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="投資配置圓餅圖"></canvas></div><div class="legend" id="legend"></div><div style="margin-top:1.25rem" id="sliders"></div><div class="total-indicator ok" id="totalIndicator">總計：100%</div><div class="return-card"><span class="return-label">預期年化報酬（估算）</span><span class="return-val" id="returnVal">${retLow}–${retHigh}%</span></div></div><div class="card"><div class="card-title">退休 / 目標計算器</div><div class="card-sub">根據你的配置與每月投入，估算達成目標所需時間</div><div class="ret-grid"><div class="ret-input-wrap"><label class="ret-input-label">目標金額（$）</label><input type="number" class="ret-input" id="retTarget" value="1500000" oninput="updateRetirement()"><div class="ret-fmt" id="retTargetFmt">$1,500,000</div></div><div class="ret-input-wrap"><label class="ret-input-label">目前資產（$）</label><input type="number" class="ret-input" id="retCurrent" value="${retBase}" oninput="updateRetirement()"><div class="ret-fmt" id="retCurrentFmt">${fmt(retBase)}</div></div></div><div class="ret-result"><div class="ret-years" id="retYears">—</div><div class="ret-years-label">預計達成年份</div></div><div class="progress-bar-wrap"><div class="progress-bar-label"><span>目前進度</span><span id="retPct">—</span></div><div class="progress-bar-track"><div class="progress-bar-fill" id="retFill" style="width:0%"></div></div></div></div><div style="margin-top:0.5rem"><button class="btn" onclick="restart()">← 重新回答問卷</button></div>`;
   buildSliders(); buildChart(); updateRetirement();
 }
 function buildSliders() {
@@ -317,6 +324,8 @@ function updateRetirement(){
   document.getElementById('retYears').textContent=typeof years==='number'?years+' 年':years;
   document.getElementById('retPct').textContent=pct+'%';
   document.getElementById('retFill').style.width=pct+'%';
+  const tf=document.getElementById('retTargetFmt'); if(tf) tf.textContent=fmt(target);
+  const cf=document.getElementById('retCurrentFmt'); if(cf) cf.textContent=fmt(current);
 }
 function restart(){
   answers={};currentQ=0;allocation=[0,0,0,0,0];
