@@ -38,6 +38,9 @@ CNN_URL  = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
 # Alpha Vantage free tier: 5 requests/min, 25/day → sleep 15s between calls
 RATE_SLEEP = 15
 
+# 每個 ticker 的 closes/timestamps 最多保留 60 筆
+MAX_CLOSES = 60
+
 # ── Utilities ──────────────────────────────────────────────────────────────────
 
 def log(msg):
@@ -352,18 +355,18 @@ def fetch_cnn():
 # ── Snapshot helpers ───────────────────────────────────────────────────────────
 
 def set_series(snap, key, series, max_bars):
-    """Replace closes/timestamps in snap[key] with time series data."""
+    """Replace closes/timestamps in snap[key] with time series data (最多 MAX_CLOSES 筆)."""
     if not series:
         return
-    subset = series[:max_bars]
+    subset = series[:min(max_bars, MAX_CLOSES)]  # 只保留最近 MAX_CLOSES 筆
     if key not in snap:
         snap[key] = {}
     snap[key]["closes"]     = [c for _, c in subset]
     snap[key]["timestamps"] = [t for t, _ in subset]
 
 
-def prepend_price(snap, key, price, now_ms, max_bars=None):
-    """Prepend today's price to snap[key] closes/timestamps arrays."""
+def prepend_price(snap, key, price, now_ms, max_bars=MAX_CLOSES):
+    """Prepend today's price to snap[key] closes/timestamps arrays (最多 MAX_CLOSES 筆)."""
     if price is None:
         return
     if key not in snap:
@@ -372,9 +375,8 @@ def prepend_price(snap, key, price, now_ms, max_bars=None):
     # Guard: filter out corrupted timestamps (non-integer values from past bugs)
     existing_tss = [t for t in snap[key].get("timestamps", []) if isinstance(t, int)]
     tss = [now_ms] + existing_tss
-    if max_bars:
-        closes = closes[:max_bars]
-        tss    = tss[:max_bars]
+    closes = closes[:max_bars]  # 只保留最近 max_bars 筆
+    tss    = tss[:max_bars]
     snap[key]["closes"]     = closes
     snap[key]["timestamps"] = tss
 
@@ -434,7 +436,7 @@ def main():
         ("SMH", "smh", 100, "compact"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
-        log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) ...")
+        log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars, capped at {MAX_CLOSES}) ...")
         series = av_time_series(sym, size)
         if series:
             set_series(snap, key, series, max_bars)
@@ -450,7 +452,7 @@ def main():
     # SPX / IXIC – GLOBAL_QUOTE only
     for key in ("spx", "ixic"):
         price = gq_cache.get(key, (None, None))[0]
-        prepend_price(snap, key, price, now_ms)
+        prepend_price(snap, key, price, now_ms, MAX_CLOSES)
 
     # ── 2b. VIX via yfinance ──────────────────────────────────────────────────
     log("yfinance ^VIX ...")
@@ -460,7 +462,7 @@ def main():
         if "vix" not in snap:
             snap["vix"] = {}
         snap["vix"]["currentPrice"] = vix_price if vix_price else vix_series[0][1]
-        log(f"VIX yfinance OK: current={snap['vix']['currentPrice']:.2f}, {len(vix_series)} bars")
+        log(f"VIX yfinance OK: current={snap['vix']['currentPrice']:.2f}, {len(snap['vix']['closes'])} bars stored")
     elif vix_price is not None:
         prepend_price(snap, "vix", vix_price, now_ms, max_bars=100)
         if "vix" not in snap:
@@ -478,7 +480,7 @@ def main():
         if "tnx" not in snap:
             snap["tnx"] = {}
         snap["tnx"]["currentPrice"] = tnx_price if tnx_price else tnx_series[0][1]
-        log(f"TNX yfinance OK: current={snap['tnx']['currentPrice']:.2f}, {len(tnx_series)} bars")
+        log(f"TNX yfinance OK: current={snap['tnx']['currentPrice']:.2f}, {len(snap['tnx']['closes'])} bars stored")
     elif tnx_price is not None:
         prepend_price(snap, "tnx", tnx_price, now_ms, max_bars=252)
         if "tnx" not in snap:
@@ -512,7 +514,7 @@ def main():
         if "dxy" not in snap:
             snap["dxy"] = {}
         snap["dxy"]["currentPrice"] = dxy_price if dxy_price else dxy_series[0][1]
-        log(f"DXY yfinance OK: {len(dxy_series)} bars, latest={dxy_series[0][1]:.2f}")
+        log(f"DXY yfinance OK: {len(snap['dxy']['closes'])} bars stored, latest={dxy_series[0][1]:.2f}")
     elif dxy_price is not None:
         prepend_price(snap, "dxy", dxy_price, now_ms, max_bars=252)
         if "dxy" not in snap:
@@ -550,7 +552,7 @@ def main():
                 if "twd" not in snap:
                     snap["twd"] = {}
                 snap["twd"]["currentPrice"] = twd_current if twd_current else twd_series[0][1]
-                log(f"yfinance TWD=X OK: current={twd_current}, {len(twd_series)} bars")
+                log(f"yfinance TWD=X OK: current={twd_current}, {len(snap['twd']['closes'])} bars stored")
             elif twd_current is not None:
                 prepend_price(snap, "twd", twd_current, now_ms, max_bars=100)
                 if "twd" not in snap:
@@ -597,6 +599,7 @@ def main():
             snap["hyOAS"]["history"] = (
                 [{"date": today_str, "value": hy_bp}]
                 + snap["hyOAS"].get("history", []))
+        snap["hyOAS"]["history"] = snap["hyOAS"]["history"][:MAX_CLOSES]  # 只保留最近 MAX_CLOSES 筆
 
     log("Shiller CAPE (multpl.com) ...")
     cape_data = fetch_multpl_cape()
@@ -621,6 +624,7 @@ def main():
         if new_entries:
             snap["fearGreed"]["history"] = (
                 new_entries + snap["fearGreed"].get("history", []))
+        snap["fearGreed"]["history"] = snap["fearGreed"]["history"][:MAX_CLOSES]  # 只保留最近 MAX_CLOSES 筆
 
     # ── 5. Finalize & write ───────────────────────────────────────────────────
     snap["timestamp"] = now_ms
