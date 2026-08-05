@@ -5,8 +5,8 @@ Fetch fresh market data from Alpha Vantage, FRED, CNN Fear & Greed, and yfinance
 then write the updated market-data-snapshot.json in-place.
 
 Data sources:
-  - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, SPX, IXIC
-  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH(100 each)
+  - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, IGV, SPX, IXIC
+  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/IGV(100 each)
   - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY), Forward P/E
   - FRED CSV                    : BAMLH0A0HYM2 (HY OAS), CAPE (Shiller PE)
   - CNN Fear & Greed            : score, rating, history
@@ -413,6 +413,7 @@ def main():
         ("SPY",   "spy",  True),
         ("QQQ",   "qqq",  True),
         ("SMH",   "smh",  True),
+        ("IGV",   "igv",  True),
         ("^GSPC", "spx",  True),
         ("^IXIC", "ixic", True),
     ]
@@ -434,6 +435,7 @@ def main():
         ("SPY", "spy", 250, "full"),
         ("QQQ", "qqq", 100, "compact"),
         ("SMH", "smh", 100, "compact"),
+        ("IGV", "igv", 100, "compact"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
         log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars, capped at {MAX_CLOSES}) ...")
