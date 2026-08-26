@@ -2,70 +2,65 @@
 'use strict';
 
 /*
- * Builds a daily, point-in-time forward P/E history for the dashboard.
+ * Builds the canonical daily ETF forward P/E history used by both the
+ * dashboard and the S&P 500 daily report.
  *
- * ETF holdings come from Alpha Vantage ETF_PROFILE. Yahoo Finance's quote
- * endpoint supplies each constituent's analyst-consensus `forwardPE`, with a
- * forwardPE-only quote-page fallback. `trailingPE` is never used.
+ * Trefis explicitly labels this value "Forward P/E (ETF aggregate)" and
+ * exposes the calculation, analyst-consensus period, and constituent-weight
+ * coverage in data attributes. We reject pages that do not contain those
+ * validation attributes rather than silently treating an ordinary P/E as
+ * forward P/E.
  */
 
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const ROOT = path.resolve(__dirname, '..');
-const OUTPUTS = [
-  path.join(ROOT, 'forward-pe-history.json')
-];
+const ROOT = path.resolve(__dirname, '../..');
+const OUTPUTS = [path.join(ROOT, 'forward-pe-history.json')];
 const ETF_SYMBOLS = ['SPY', 'QQQ', 'SMH', 'IGV'];
-const MAX_HOLDINGS = Number.parseInt(process.env.FORWARD_PE_MAX_HOLDINGS || '200', 10);
-const CONCURRENCY = 8;
-const ALPHA_REQUEST_SPACING_MS = 1250;
-const MIN_COVERAGE = 0.40;
-const FULL_COVERAGE = 0.80;
 const MAX_HISTORY_POINTS = 800;
-const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
-const HOLDINGS_SOURCE = 'Alpha Vantage ETF_PROFILE';
-const FORWARD_PE_SOURCE = 'Yahoo Finance quote endpoint forwardPE via cookie/crumb (analyst consensus; quote-page fallback; trailingPE excluded)';
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/136.0.0.0 Safari/537.36';
+const TREFIS_SOURCE = 'Trefis ETF aggregate Forward P/E (analyst consensus)';
+const TREFIS_URL = symbol => `https://www.trefis.com/data/companies/${encodeURIComponent(symbol)}`;
 
-function requestURL(url, { timeoutMs = 18000, headers = {}, allowNon200 = false } = {}) {
+function requestURL(url, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
-      headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/json', ...headers },
-      // Yahoo currently sends enough Set-Cookie headers to exceed Node's default.
+      headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml' },
       maxHeaderSize: 128 * 1024
-    }, (res) => {
+    }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        return requestURL(new URL(res.headers.location, url).toString(), { timeoutMs, headers, allowNon200 }).then(resolve, reject);
+        return requestURL(new URL(res.headers.location, url).toString(), timeoutMs).then(resolve, reject);
       }
       let body = '';
       res.setEncoding('utf8');
       res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        if (res.statusCode !== 200 && !allowNon200) return reject(new Error(`HTTP ${res.statusCode}: ${url}`));
-        resolve({ body, headers: res.headers, statusCode: res.statusCode });
-      });
+      res.on('end', () => res.statusCode === 200
+        ? resolve(body)
+        : reject(new Error(`HTTP ${res.statusCode}: ${url}`)));
     });
     req.setTimeout(timeoutMs, () => req.destroy(new Error(`timeout after ${timeoutMs}ms: ${url}`)));
     req.on('error', reject);
   });
 }
 
-async function fetchURL(url, timeoutMs = 18000) {
-  return (await requestURL(url, { timeoutMs })).body;
+function decodeHTML(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&divide;/g, '÷').replace(/&middot;/g, '·').replace(/&nbsp;/g, ' ')
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
 }
 
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function attr(tag, name) {
+  const match = tag.match(new RegExp(`${name}\\s*=\\s*['"]([^'"]*)['"]`, 'i'));
+  return match ? decodeHTML(match[1]) : '';
 }
 
-function parseYahooForwardPE(html) {
-  // Yahoo serializes quote data into HTML with escaped JSON, e.g.
-  // forwardPE\\\":{\\\"raw\\\":16.34. The exact forwardPE key is required.
-  const match = html.match(/forwardPE\\?"\s*:\s*\{\\?"raw\\?"\s*:\s*(-?\d+(?:\.\d+)?)/i);
-  const value = match ? Number.parseFloat(match[1]) : null;
-  return Number.isFinite(value) && value > 0 && value < 1000 ? value : null;
+function parseNumber(text) {
+  const match = String(text || '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
 }
 
 function currentNYSEDate(now = new Date()) {
@@ -74,198 +69,65 @@ function currentNYSEDate(now = new Date()) {
   }).format(now);
 }
 
-function redactSensitiveError(error, apiKey = '') {
-  let message = String(error || 'Unknown source error');
-  if (apiKey) message = message.split(apiKey).join('[redacted]');
-  return message
-    .replace(/API key\s+(?:as|is)\s+[A-Za-z0-9_-]+/gi, 'API key [redacted]')
-    .replace(/([?&]apikey=)[^&\s]+/gi, '$1[redacted]');
-}
-
-async function fetchETFHoldings(symbol, apiKey) {
-  const raw = await fetchURL(`https://www.alphavantage.co/query?function=ETF_PROFILE&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`);
-  const data = JSON.parse(raw);
-  if (data.Note || data.Information || data['Error Message']) {
-    const detail = String(data.Note || data.Information || data['Error Message']);
-    if (/rate limit|request per second|requests per day/i.test(detail)) throw new Error(`${symbol}: Alpha Vantage rate limit; N/A recorded.`);
-    throw new Error(`${symbol}: Alpha Vantage ETF_PROFILE unavailable; N/A recorded.`);
+function parseTrefisForwardPE(html, symbol) {
+  const labelIndex = html.search(/>\s*P\/E \(Non-GAAP\) \[2\]\s*<\/td>/i);
+  if (labelIndex < 0) throw new Error(`${symbol}: Trefis P/E row not found`);
+  const rowStart = html.lastIndexOf('<tr', labelIndex);
+  const rowEnd = html.indexOf('</tr>', labelIndex);
+  const row = rowStart >= 0 && rowEnd >= 0 ? html.slice(rowStart, rowEnd + 5) : '';
+  const forwardSpan = row.match(/<span[^>]*class=['"][^'"]*hfwd-cell[^'"]*['"][^>]*>[\s\S]*?<\/span>/i);
+  if (!forwardSpan || !/Forward P\/E \(ETF aggregate\)/i.test(attr(forwardSpan[0], 'data-h'))) {
+    throw new Error(`${symbol}: explicit Trefis Forward P/E marker not found`);
   }
-  if (!Array.isArray(data.holdings) || !data.holdings.length) throw new Error(`${symbol}: ETF_PROFILE returned no holdings`);
-  return data.holdings
-    .map(item => ({ symbol: String(item.symbol || '').toUpperCase(), weight: Number.parseFloat(item.weight) }))
-    .filter(item => /^[A-Z][A-Z0-9.-]*$/.test(item.symbol) && Number.isFinite(item.weight) && item.weight > 0)
-    .sort((a, b) => b.weight - a.weight);
-}
+  const value = parseNumber(forwardSpan[0].replace(/<[^>]+>/g, ' '));
+  if (!Number.isFinite(value) || value <= 0 || value >= 1000) throw new Error(`${symbol}: invalid forward P/E value`);
 
-async function mapWithConcurrency(items, worker) {
-  const result = new Array(items.length);
-  let cursor = 0;
-  async function run() {
-    while (true) {
-      const index = cursor++;
-      if (index >= items.length) return;
-      result[index] = await worker(items[index]);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, run));
-  return result;
-}
+  const align = attr(forwardSpan[0], 'data-align');
+  const coverageMatch = align.match(/Across\s+(\d+)\/(\d+)\s+constituents\s+\((\d+(?:\.\d+)?)%\s+of weight[^)]*\)/i);
+  const coverage = coverageMatch ? Number(coverageMatch[3]) / 100 : null;
+  const coveredHoldings = coverageMatch ? Number(coverageMatch[1]) : null;
+  const totalHoldings = coverageMatch ? Number(coverageMatch[2]) : null;
+  if (!Number.isFinite(coverage) || coverage <= 0 || coverage > 1) throw new Error(`${symbol}: Trefis coverage metadata missing`);
 
-async function fetchConstituentForwardPE(symbol) {
-  try {
-    const html = await fetchURL(`https://finance.yahoo.com/quote/${encodeURIComponent(normalizeYahooSymbol(symbol))}/`, 15000);
-    return parseYahooForwardPE(html);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeYahooSymbol(symbol) {
-  return String(symbol).replace(/\./g, '-');
-}
-
-function parseYahooQuoteForwardPE(payload) {
-  const values = new Map();
-  for (const quote of payload?.quoteResponse?.result || []) {
-    const value = Number(quote?.forwardPE);
-    // Do not inspect trailingPE: only Yahoo's explicit forwardPE is accepted.
-    if (Number.isFinite(value) && value > 0 && value < 1000) values.set(String(quote.symbol).toUpperCase(), value);
-  }
-  return values;
-}
-
-async function createYahooSession() {
-  let cookie = '';
-  try {
-    const bootstrap = await requestURL('https://fc.yahoo.com/', { timeoutMs: 12000, allowNon200: true });
-    cookie = (bootstrap.headers['set-cookie'] || []).map(item => item.split(';', 1)[0]).join('; ');
-  } catch {}
-  const crumb = (await requestURL('https://query1.finance.yahoo.com/v1/test/getcrumb', {
-    timeoutMs: 12000,
-    headers: cookie ? { Cookie: cookie } : {}
-  })).body.trim();
-  if (!crumb) throw new Error('Yahoo crumb unavailable');
-  return { cookie, crumb };
-}
-
-function chunk(items, size) {
-  const output = [];
-  for (let index = 0; index < items.length; index += size) output.push(items.slice(index, index + size));
-  return output;
-}
-
-async function fetchForwardPEBySymbol(symbols) {
-  const values = new Map();
-  const originalByYahooSymbol = new Map(symbols.map(symbol => [normalizeYahooSymbol(symbol).toUpperCase(), symbol]));
-  try {
-    const session = await createYahooSession();
-    for (const symbolsBatch of chunk(symbols, 50)) {
-      const params = new URLSearchParams({
-        symbols: symbolsBatch.map(normalizeYahooSymbol).join(','),
-        crumb: session.crumb
-      });
-      const response = await requestURL(`https://query1.finance.yahoo.com/v7/finance/quote?${params}`, {
-        timeoutMs: 15000,
-        headers: session.cookie ? { Cookie: session.cookie } : {}
-      });
-      const parsed = parseYahooQuoteForwardPE(JSON.parse(response.body));
-      for (const [yahooSymbol, value] of parsed) {
-        const original = originalByYahooSymbol.get(yahooSymbol);
-        if (original) values.set(original, value);
-      }
-    }
-  } catch {}
-
-  // The quote endpoint is preferred because it returns batches consistently.
-  // Retain a forwardPE-only HTML fallback for the few symbols it omits.
-  const missing = symbols.filter(symbol => !values.has(symbol));
-  const fallback = await mapWithConcurrency(missing, async symbol => [symbol, await fetchConstituentForwardPE(symbol)]);
-  for (const [symbol, value] of fallback) if (Number.isFinite(value)) values.set(symbol, value);
-  return values;
-}
-
-function round(value, decimals = 4) {
-  return Number(value.toFixed(decimals));
-}
-
-function makeUnavailablePoint({ asOf, retrievedAt, error, totalHoldings = 0, selectedHoldings = 0, selectedWeight = 0 }) {
+  const forecastMatch = align.match(/(FY1\/FY2[^·]*?)(?:\s*·|$)/i);
+  const result = attr(forwardSpan[0], 'data-result');
+  const calc = attr(forwardSpan[0], 'data-calc');
+  const updatedMatch = html.match(/Last updated:\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  const asOf = updatedMatch
+    ? `${updatedMatch[3]}-${String(updatedMatch[1]).padStart(2, '0')}-${String(updatedMatch[2]).padStart(2, '0')}`
+    : null;
   return {
-    value: null,
-    status: 'unavailable',
-    coverage: 0,
-    totalHoldings,
-    selectedHoldings,
-    coveredHoldings: 0,
-    selectedWeight: round(selectedWeight, 6),
-    asOf,
-    retrievedAt,
-    sources: { holdings: HOLDINGS_SOURCE, constituentForwardPE: FORWARD_PE_SOURCE },
-    error
-  };
-}
-
-function estimateETFForwardPE(allHoldings, forwardPEBySymbol, options = {}) {
-  const maxHoldings = options.maxHoldings || MAX_HOLDINGS;
-  const totalWeight = allHoldings.reduce((sum, holding) => sum + holding.weight, 0);
-  const holdings = allHoldings.slice(0, maxHoldings);
-  const selectedWeight = holdings.reduce((sum, holding) => sum + holding.weight, 0);
-  let coveredWeight = 0;
-  let inversePEWeighted = 0;
-  let coveredHoldings = 0;
-  for (const holding of holdings) {
-    const pe = forwardPEBySymbol.get(holding.symbol);
-    if (!Number.isFinite(pe)) continue;
-    coveredWeight += holding.weight;
-    inversePEWeighted += holding.weight / pe;
-    coveredHoldings += 1;
-  }
-
-  // Coverage is always measured against the full ETF portfolio, never only
-  // against the truncated selected basket.
-  const coverage = totalWeight > 0 ? coveredWeight / totalWeight : 0;
-  const value = coverage >= MIN_COVERAGE && inversePEWeighted > 0 ? coveredWeight / inversePEWeighted : null;
-  const status = value == null ? 'unavailable' : coverage < FULL_COVERAGE ? 'partial' : 'available';
-  return {
-    value: value == null ? null : round(value, 2),
-    status,
-    coverage: round(coverage),
-    totalHoldings: allHoldings.length,
-    selectedHoldings: holdings.length,
+    value: Number(value.toFixed(2)),
+    status: coverage >= 0.99 ? 'available' : 'partial',
+    coverage: Number(coverage.toFixed(4)),
     coveredHoldings,
-    selectedWeight: round(totalWeight > 0 ? selectedWeight / totalWeight : 0, 6),
-    coveredWeight: round(totalWeight > 0 ? coveredWeight / totalWeight : 0, 6)
-  };
-}
-
-function pointWithMetadata(point, { asOf, retrievedAt }) {
-  return {
-    ...point,
+    totalHoldings,
     asOf,
-    retrievedAt,
-    sources: { holdings: HOLDINGS_SOURCE, constituentForwardPE: FORWARD_PE_SOURCE },
-    ...(point.status === 'unavailable' ? {
-      error: 'Forward P/E coverage below 40%; no trailing P/E fallback was used.'
-    } : {})
+    forecastPeriod: forecastMatch ? forecastMatch[1].trim() : null,
+    calculation: calc || null,
+    result: result || null,
+    sourceUrl: TREFIS_URL(symbol),
+    source: TREFIS_SOURCE
   };
 }
 
-function pointQuality(point) {
-  if (!point || !Number.isFinite(point.coverage)) return -1;
-  return point.coverage + (Number.isFinite(point.value) ? 1 : 0);
+function makeUnavailablePoint({ date, retrievedAt, error, symbol }) {
+  return {
+    value: null, status: 'unavailable', coverage: null, coveredHoldings: null, totalHoldings: null,
+    asOf: null, date, retrievedAt, sourceUrl: TREFIS_URL(symbol), source: TREFIS_SOURCE, error
+  };
 }
 
 function readHistory() {
-  for (const output of OUTPUTS) {
-    try {
-      const data = JSON.parse(fs.readFileSync(output, 'utf8'));
-      if (Array.isArray(data.snapshots)) return data;
-    } catch {}
-  }
+  try {
+    const data = JSON.parse(fs.readFileSync(OUTPUTS[0], 'utf8'));
+    if (Array.isArray(data.snapshots)) return data;
+  } catch {}
   return {
-    schemaVersion: 2,
-    metric: 'ETF constituent-weighted forward P/E',
-    methodology: 'Weighted harmonic mean of positive constituent analyst-consensus forward P/E values. trailingPE is never used. Coverage is measured against the full reported ETF holding weight; a value is N/A below 40% coverage.',
-    sources: { holdings: HOLDINGS_SOURCE, constituentForwardPE: FORWARD_PE_SOURCE },
+    schemaVersion: 3,
+    metric: 'ETF aggregate forward P/E',
+    methodology: 'Trefis ETF aggregate Forward P/E: weighted forward earnings yield inverted to P/E, using analyst-consensus FY1/FY2 estimates and current ETF weights; source metadata is retained for every point.',
+    sources: { provider: 'Trefis', urls: Object.fromEntries(ETF_SYMBOLS.map(s => [s, TREFIS_URL(s)])) },
     snapshots: []
   };
 }
@@ -277,88 +139,40 @@ function writeJSONAtomic(filename, data) {
 }
 
 async function main() {
-  if (!Number.isInteger(MAX_HOLDINGS) || MAX_HOLDINGS < 1) throw new Error('FORWARD_PE_MAX_HOLDINGS must be a positive integer');
-  const asOf = currentNYSEDate();
+  const retrievedDate = currentNYSEDate();
   const retrievedAt = new Date().toISOString();
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
-  const holdingsByETF = new Map();
-  const errorsByETF = new Map();
-
-  for (const [index, symbol] of ETF_SYMBOLS.entries()) {
-    if (!apiKey) {
-      errorsByETF.set(symbol, 'ALPHA_VANTAGE_API_KEY is not configured; N/A recorded.');
-      continue;
-    }
-    try {
-      // Alpha Vantage free tier permits one request per second.  This is
-      // deliberately inside the per-ETF loop so every run gets a fair chance
-      // to create all four point-in-time observations.
-      if (index > 0) await delay(1100);
-      holdingsByETF.set(symbol, await fetchETFHoldings(symbol, apiKey));
-    } catch (error) {
-      errorsByETF.set(symbol, redactSensitiveError(error.message, apiKey));
-    }
-    // Alpha Vantage's free endpoint permits one request per second. Keep the
-    // four ETF profiles in the same daily run rather than recording avoidable
-    // N/A values for later symbols.
-    if (symbol !== ETF_SYMBOLS.at(-1)) await delay(ALPHA_REQUEST_SPACING_MS);
-  }
-
-  const selectedSymbols = [...new Set([...holdingsByETF.values()]
-    .flatMap(holdings => holdings.slice(0, MAX_HOLDINGS).map(item => item.symbol)))];
-  const forwardPEBySymbol = await fetchForwardPEBySymbol(selectedSymbols);
-
-  const etfs = {};
+  const parsed = {};
   for (const symbol of ETF_SYMBOLS) {
-    const holdings = holdingsByETF.get(symbol);
-    if (!holdings) {
-      etfs[symbol] = makeUnavailablePoint({ asOf, retrievedAt, error: errorsByETF.get(symbol) || 'Holdings unavailable; N/A recorded.' });
-      continue;
+    try {
+      const point = parseTrefisForwardPE(await requestURL(TREFIS_URL(symbol)), symbol);
+      parsed[symbol] = point;
+    } catch (error) {
+      parsed[symbol] = makeUnavailablePoint({ date: retrievedDate, retrievedAt, error: error.message, symbol });
     }
-    etfs[symbol] = pointWithMetadata(estimateETFForwardPE(holdings, forwardPEBySymbol), { asOf, retrievedAt });
   }
+
+  // Use the latest source-provided market date, not the machine's calendar
+  // date. This prevents a run just after midnight ET from creating a future
+  // observation before the next market session has been published.
+  const date = Object.values(parsed).map(point => point.asOf).filter(Boolean).sort().at(-1) || retrievedDate;
+  const etfs = Object.fromEntries(Object.entries(parsed).map(([symbol, point]) => [symbol, { ...point, date, retrievedAt }]));
 
   const history = readHistory();
-  history.schemaVersion = 2;
-  history.metric = 'ETF constituent-weighted forward P/E';
-  history.methodology = 'Weighted harmonic mean of positive constituent analyst-consensus forward P/E values. trailingPE is never used. Coverage is measured against the full reported ETF holding weight; a value is N/A below 40% coverage.';
-  history.sources = { holdings: HOLDINGS_SOURCE, constituentForwardPE: FORWARD_PE_SOURCE };
-  history.startedAt = history.startedAt || asOf;
+  history.schemaVersion = 3;
+  history.metric = 'ETF aggregate forward P/E';
+  history.methodology = 'Trefis ETF aggregate Forward P/E: weighted forward earnings yield inverted to P/E, using analyst-consensus FY1/FY2 estimates and current ETF weights; source metadata is retained for every point.';
+  history.sources = { provider: 'Trefis', urls: Object.fromEntries(ETF_SYMBOLS.map(s => [s, TREFIS_URL(s)])) };
+  history.startedAt = history.startedAt || date;
   history.lastUpdatedAt = retrievedAt;
-  history.maxHoldingsPerETF = MAX_HOLDINGS;
-  const previous = history.snapshots.find(point => point && point.date === asOf);
-  const chosenEtfs = {};
-  for (const symbol of ETF_SYMBOLS) {
-    const oldPoint = previous?.etfs?.[symbol];
-    const newPoint = etfs[symbol];
-    chosenEtfs[symbol] = pointQuality(oldPoint) > pointQuality(newPoint) ? oldPoint : newPoint;
-  }
-  history.snapshots = history.snapshots.filter(point => point && point.date !== asOf);
-  history.snapshots.push({ date: asOf, asOf, retrievedAt, etfs: chosenEtfs });
+  history.snapshots = history.snapshots.filter(point => point && point.date !== date);
+  history.snapshots.push({ date, asOf: date, retrievedAt, etfs });
   history.snapshots.sort((a, b) => a.date.localeCompare(b.date));
   history.snapshots = history.snapshots.slice(-MAX_HISTORY_POINTS);
-
   for (const output of OUTPUTS) writeJSONAtomic(output, history);
-  const summary = ETF_SYMBOLS.map(symbol => {
-    const point = etfs[symbol];
-    return `${symbol}=${point.value ?? 'N/A'} (${Math.round(point.coverage * 100)}% coverage, ${point.status})`;
-  }).join(', ');
-  console.log(`forward P/E snapshot saved for ${asOf}: ${summary}`);
+  console.log(`Trefis forward P/E snapshot saved for ${date}: ${ETF_SYMBOLS.map(s => `${s}=${etfs[s].value ?? 'N/A'} (${Math.round((etfs[s].coverage || 0) * 100)}% weight)`).join(', ')}`);
+  if (ETF_SYMBOLS.some(s => etfs[s].status === 'unavailable')) process.exitCode = 1;
 }
 
-if (require.main === module) {
-  main().catch(error => {
-    console.error(`ERROR: forward P/E snapshot failed: ${error.message}`);
-    process.exitCode = 1;
-  });
-}
+if (require.main === module) main().catch(error => { console.error(`ERROR: Trefis forward P/E snapshot failed: ${error.message}`); process.exitCode = 1; });
 
-module.exports = {
-  parseYahooForwardPE,
-  parseYahooQuoteForwardPE,
-  normalizeYahooSymbol,
-  currentNYSEDate,
-  estimateETFForwardPE,
-  makeUnavailablePoint,
-  redactSensitiveError
-};
+module.exports = { parseTrefisForwardPE, currentNYSEDate, makeUnavailablePoint, decodeHTML };

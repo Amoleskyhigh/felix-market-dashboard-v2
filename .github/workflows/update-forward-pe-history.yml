@@ -1,0 +1,31 @@
+name: Update Trefis ETF forward P/E history (post-market daily)
+
+on:
+  schedule:
+    - cron: '35 22 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-forward-pe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Generate Trefis forward P/E history
+        run: node .github/scripts/update-forward-pe-history.js
+      - name: Validate history
+        run: |
+          node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync('forward-pe-history.json','utf8')); if(d.schemaVersion!==3||!Array.isArray(d.snapshots)||!d.snapshots.length) throw new Error('history missing'); for(const p of d.snapshots) for(const s of ['SPY','QQQ','SMH','IGV']) { const e=p.etfs?.[s]; if(!e||!['available','partial','unavailable'].includes(e.status)) throw new Error('invalid '+s); if(!e.date||!e.retrievedAt||!e.sourceUrl||e.source!=='Trefis ETF aggregate Forward P/E (analyst consensus)') throw new Error('missing source/date '+s); if(e.status==='unavailable'&&e.value!==null) throw new Error('unavailable has value '+s); if(e.status!=='unavailable'&&(!Number.isFinite(e.value)||!Number.isFinite(e.coverage))) throw new Error('numeric metadata missing '+s); } console.log('Trefis forward P/E history ok')"
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet -- forward-pe-history.json; then echo "No Trefis forward P/E changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add forward-pe-history.json
+          git commit -m "chore: update Trefis ETF forward P/E history"
+          git push
