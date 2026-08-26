@@ -115,6 +115,16 @@
         </div>
     </div>
 
+    <!-- ETF Forward P/E history -->
+    <section class="card forward-pe-panel" aria-labelledby="forward-pe-title">
+        <h3 id="forward-pe-title">🔭 SPY / QQQ / SMH / IGV Forward P/E</h3>
+        <div id="forward-pe-status" class="forward-pe-status">⏳ 載入每日估值快照…</div>
+        <div id="forward-pe-latest" class="forward-pe-latest"></div>
+        <div class="forward-pe-chart-wrap"><canvas id="chart-forward-pe" aria-label="SPY、QQQ、SMH、IGV forward P/E 每日趨勢圖"></canvas></div>
+        <div id="forward-pe-meta" class="forward-pe-meta">來源與資料日期載入中…</div>
+        <div class="forward-pe-note">持股加權 analyst-consensus forward P/E（正值採調和平均）。只讀取 <code>forwardPE</code>，不以 trailing P/E 代替；覆蓋率低於 40% 顯示 N/A。</div>
+    </section>
+
     <!-- Charts + Sidebar -->
     <div class="main-layout">
         <div>
@@ -197,5 +207,20 @@
     <script src="scoring.js"></script>
     <script src="render.js"></script>
     <script src="charts.js"></script>
+    <script src="forward-pe.js"></script>
+    <style>
+        .forward-pe-panel { margin: 18px 0; }
+        .forward-pe-status { padding: 8px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; background: #24313e; color: #aaa; }
+        .forward-pe-status.success { background: #1e3a2c; color: #4caf50; }
+        .forward-pe-status.warning { background: #3a311e; color: #ffb74d; }
+        .forward-pe-status.error { background: #442727; color: #ff5252; }
+        .forward-pe-latest { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .forward-pe-metric { background: #121e2a; border: 1px solid #2a3a4a; border-radius: 8px; padding: 10px; display: grid; gap: 4px; }
+        .forward-pe-metric strong { font-size: 20px; }
+        .forward-pe-metric small { color: #888; font-size: 10px; }
+        .forward-pe-chart-wrap { height: 300px; margin-top: 12px; }
+        .forward-pe-meta, .forward-pe-note { color: #888; font-size: 11px; line-height: 1.6; margin-top: 8px; }
+        @media (max-width: 700px) { .forward-pe-latest { grid-template-columns: repeat(2, 1fr); } .forward-pe-chart-wrap { height: 240px; } }
+    </style>
 </body>
 </html>

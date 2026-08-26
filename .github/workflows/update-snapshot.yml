@@ -20,9 +20,13 @@ jobs:
         env:
           AV_KEY: ${{ secrets.AV_KEY }}
         run: python .github/scripts/update_snapshot.py
+      - name: Update ETF forward P/E history
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.AV_KEY }}
+        run: node .github/scripts/update-forward-pe-history.js
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add market-data-snapshot.json
+          git add market-data-snapshot.json forward-pe-history.json
           git diff --cached --quiet || git commit -m "chore: update market snapshot $(date -u +%Y-%m-%d)" && git push

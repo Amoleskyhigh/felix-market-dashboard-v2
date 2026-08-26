@@ -84,3 +84,11 @@
         .up { color: #4caf50; }
         .down { color: #f44336; }
         .neutral { color: #ff9800; }
+
+        @media (max-width: 700px) {
+            body { overflow-x: hidden; }
+            .score-panel, .main-layout { grid-template-columns: 1fr; }
+            .chart-grid { grid-template-columns: 1fr; }
+            .mtd-table { table-layout: fixed; width: 100%; }
+            .mtd-table td { max-width: 50%; overflow-wrap: anywhere; }
+        }
