@@ -120,10 +120,10 @@
         <h3 id="forward-pe-title">🔭 SPY / QQQ / SMH / IGV Forward P/E</h3>
         <div id="forward-pe-status" class="forward-pe-status">⏳ 載入每日估值快照…</div>
         <div id="forward-pe-latest" class="forward-pe-latest"></div>
-        <div class="forward-pe-chart-note">四個小圖共用日期軸，各自使用獨立估值軸；淡色區域代表該 ETF 的合理範圍。</div>
+        <div class="forward-pe-chart-note">四個小圖共用日期軸，各自使用獨立估值軸；虛線是 P25／P75，較深色區域是中間 50% 的核心合理區間，最淡色區域是外圍統計範圍。</div>
         <div class="forward-pe-chart-grid" id="forward-pe-chart-grid" aria-label="SPY、QQQ、SMH、IGV forward P/E 同步趨勢圖"></div>
         <div id="forward-pe-meta" class="forward-pe-meta">來源與資料日期載入中…</div>
-        <div class="forward-pe-note">來源：Trefis ETF aggregate Forward P/E。由分析師 FY1/FY2 共識與 ETF 當期權重計算；每筆保留涵蓋成分股／權重、資料日與預測期間。若來源沒有明確 Forward P/E 驗證欄位則顯示 N/A。</div>
+        <div class="forward-pe-note">區間計算：以 Trefis 每日 Forward P/E 歷史觀測值排序，P25／P75 分別是第 25／75 百分位（中間 50% 視為核心合理區間）；外圍範圍為平均值 ± 1.5 個標準差，用來標示較寬的統計合理範圍。Forward P/E 由分析師 FY1/FY2 共識與 ETF 當期權重計算；每筆保留涵蓋成分股／權重、資料日與預測期間。若來源沒有明確 Forward P/E 驗證欄位則顯示 N/A。</div>
     </section>
 
     <!-- Charts + Sidebar -->

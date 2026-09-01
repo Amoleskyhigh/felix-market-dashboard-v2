@@ -4,11 +4,11 @@
     const colors = { SPY: '#4fc3f7', QQQ: '#ce93d8', SMH: '#ffb74d', IGV: '#81c784' };
     let charts = [];
     // 5 年 rolling proxy band（μ±1.5σ）；集中在此處，方便日後重新校準。
-    const reasonableRanges = {
-        SPY: [15.00, 23.00],
-        QQQ: [20.00, 32.00],
-        SMH: [18.00, 40.00],
-        IGV: [14.77, 81.10]
+    const defaultBands = {
+        SPY: { lower: 15.00, p25: 17.50, p75: 20.50, upper: 23.00 },
+        QQQ: { lower: 20.00, p25: 23.50, p75: 28.00, upper: 32.00 },
+        SMH: { lower: 18.00, p25: 27.96, p75: 34.66, upper: 40.00 },
+        IGV: { lower: 14.77, p25: 33.08, p75: 53.78, upper: 81.10 }
     };
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function render(history) {
@@ -33,19 +33,23 @@
         const grid = document.getElementById('forward-pe-chart-grid');
         grid.innerHTML = symbols.map(symbol => `<div class="forward-pe-mini-chart"><canvas id="chart-forward-pe-${symbol.toLowerCase()}" aria-label="${symbol} forward P/E 趨勢圖"></canvas></div>`).join('');
         charts.forEach(existing => existing.destroy());
-        charts = symbols.map((symbol, index) => {
-            const [lower, upper] = reasonableRanges[symbol];
+        const bands = history.valuationBands || defaultBands;
+        charts = symbols.map(symbol => {
+            const band = bands[symbol] || defaultBands[symbol];
+            const { lower, p25, p75, upper } = band;
             const valuesForSymbol = (history.snapshots || []).map(s => Number.isFinite(s.etfs?.[symbol]?.value) ? s.etfs[symbol].value : null);
             return new Chart(document.getElementById(`chart-forward-pe-${symbol.toLowerCase()}`), {
                 type: 'line',
                 data: { labels, datasets: [
-                    { label: '合理區間下限', data: labels.map(() => lower), borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, borderWidth: 0 },
-                    { label: `合理區間 ${lower.toFixed(2)}–${upper.toFixed(2)}x`, data: labels.map(() => upper), borderColor: 'transparent', backgroundColor: `${colors[symbol]}22`, pointRadius: 0, borderWidth: 0, fill: { target: '-1' } },
+                    { label: '外圍範圍下限', data: labels.map(() => lower), borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, borderWidth: 0 },
+                    { label: `外圍範圍 ${lower.toFixed(2)}–${upper.toFixed(2)}x`, data: labels.map(() => upper), borderColor: 'transparent', backgroundColor: `${colors[symbol]}14`, pointRadius: 0, borderWidth: 0, fill: { target: '-1' } },
+                    { label: `P25 ${p25.toFixed(2)}x`, data: labels.map(() => p25), borderColor: `${colors[symbol]}aa`, backgroundColor: 'transparent', borderDash: [5, 4], pointRadius: 0, borderWidth: 1, fill: false },
+                    { label: `P75 ${p75.toFixed(2)}x`, data: labels.map(() => p75), borderColor: `${colors[symbol]}aa`, backgroundColor: `${colors[symbol]}24`, borderDash: [5, 4], pointRadius: 0, borderWidth: 1, fill: { target: '-1' } },
                     { label: symbol, data: valuesForSymbol, borderColor: colors[symbol], backgroundColor: colors[symbol], borderWidth: 2, pointRadius: 2, tension: .2, spanGaps: false }
                 ] },
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-                    plugins: { legend: { position: 'top', labels: { color: '#aaa', boxWidth: 12, filter: item => item.datasetIndex === 2 || item.datasetIndex === 1 } },
-                        title: { display: true, text: `${symbol} · 合理範圍 ${lower.toFixed(2)}–${upper.toFixed(2)}x`, color: colors[symbol], align: 'start', font: { size: 13 } } },
+                    plugins: { legend: { position: 'top', labels: { color: '#aaa', boxWidth: 12, filter: item => item.datasetIndex >= 2 } },
+                        title: { display: true, text: `${symbol} · P25–P75 ${p25.toFixed(2)}–${p75.toFixed(2)}x`, color: colors[symbol], align: 'start', font: { size: 13 } } },
                     scales: { x: { ticks: { color: '#888', maxTicksLimit: 6 }, grid: { color: '#1a2a3a' } }, y: { title: { display: true, text: 'Forward P/E (x)', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#1a2a3a' }, suggestedMin: Math.max(0, lower - (upper - lower) * .08), suggestedMax: upper + (upper - lower) * .08 } } }
             });
         });

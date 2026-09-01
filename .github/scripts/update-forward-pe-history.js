@@ -24,6 +24,17 @@ const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/
 const TREFIS_SOURCE = 'Trefis ETF aggregate Forward P/E (analyst consensus)';
 const TREFIS_URL = symbol => `https://www.trefis.com/data/companies/${encodeURIComponent(symbol)}`;
 
+// Keep the calibrated percentile bands alongside the daily observations so
+// the dashboard can render them without recalculating from only a few recent
+// snapshots. Recalibrate these values when the long-term source history is
+// refreshed.
+const VALUATION_BANDS = {
+  SPY: { lower: 15.00, p25: 17.50, p75: 20.50, upper: 23.00 },
+  QQQ: { lower: 20.00, p25: 23.50, p75: 28.00, upper: 32.00 },
+  SMH: { lower: 18.00, p25: 27.96, p75: 34.66, upper: 40.00 },
+  IGV: { lower: 14.77, p25: 33.08, p75: 53.78, upper: 81.10 }
+};
+
 function requestURL(url, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
@@ -164,6 +175,7 @@ async function main() {
   history.sources = { provider: 'Trefis', urls: Object.fromEntries(ETF_SYMBOLS.map(s => [s, TREFIS_URL(s)])) };
   history.startedAt = history.startedAt || date;
   history.lastUpdatedAt = retrievedAt;
+  history.valuationBands = VALUATION_BANDS;
   history.snapshots = history.snapshots.filter(point => point && point.date !== date);
   history.snapshots.push({ date, asOf: date, retrievedAt, etfs });
   history.snapshots.sort((a, b) => a.date.localeCompare(b.date));

@@ -2,6 +2,12 @@
   "schemaVersion": 3,
   "metric": "ETF aggregate forward P/E",
   "methodology": "Trefis ETF aggregate Forward P/E: weighted forward earnings yield inverted to P/E, using analyst-consensus FY1/FY2 estimates and current ETF weights; source metadata is retained for every point.",
+  "valuationBands": {
+    "SPY": { "lower": 15.0, "p25": 17.5, "p75": 20.5, "upper": 23.0 },
+    "QQQ": { "lower": 20.0, "p25": 23.5, "p75": 28.0, "upper": 32.0 },
+    "SMH": { "lower": 18.0, "p25": 27.96, "p75": 34.66, "upper": 40.0 },
+    "IGV": { "lower": 14.77, "p25": 33.08, "p75": 53.78, "upper": 81.10 }
+  },
   "sources": {
     "provider": "Trefis",
     "urls": {
