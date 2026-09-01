@@ -120,7 +120,8 @@
         <h3 id="forward-pe-title">🔭 SPY / QQQ / SMH / IGV Forward P/E</h3>
         <div id="forward-pe-status" class="forward-pe-status">⏳ 載入每日估值快照…</div>
         <div id="forward-pe-latest" class="forward-pe-latest"></div>
-        <div class="forward-pe-chart-wrap"><canvas id="chart-forward-pe" aria-label="SPY、QQQ、SMH、IGV forward P/E 每日趨勢圖"></canvas></div>
+        <div class="forward-pe-chart-note">四個小圖共用日期軸，各自使用獨立估值軸；淡色區域代表該 ETF 的合理範圍。</div>
+        <div class="forward-pe-chart-grid" id="forward-pe-chart-grid" aria-label="SPY、QQQ、SMH、IGV forward P/E 同步趨勢圖"></div>
         <div id="forward-pe-meta" class="forward-pe-meta">來源與資料日期載入中…</div>
         <div class="forward-pe-note">來源：Trefis ETF aggregate Forward P/E。由分析師 FY1/FY2 共識與 ETF 當期權重計算；每筆保留涵蓋成分股／權重、資料日與預測期間。若來源沒有明確 Forward P/E 驗證欄位則顯示 N/A。</div>
     </section>
@@ -218,9 +219,12 @@
         .forward-pe-metric { background: #121e2a; border: 1px solid #2a3a4a; border-radius: 8px; padding: 10px; display: grid; gap: 4px; }
         .forward-pe-metric strong { font-size: 20px; }
         .forward-pe-metric small { color: #888; font-size: 10px; }
-        .forward-pe-chart-wrap { height: 300px; margin-top: 12px; }
+        .forward-pe-chart-note { color: #888; font-size: 11px; line-height: 1.6; margin-top: 12px; }
+        .forward-pe-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+        .forward-pe-mini-chart { min-width: 0; height: 220px; padding: 8px 8px 4px; background: #121e2a; border: 1px solid #2a3a4a; border-radius: 8px; }
+        .forward-pe-mini-chart canvas { width: 100% !important; height: 100% !important; }
         .forward-pe-meta, .forward-pe-note { color: #888; font-size: 11px; line-height: 1.6; margin-top: 8px; }
-        @media (max-width: 700px) { .forward-pe-latest { grid-template-columns: repeat(2, 1fr); } .forward-pe-chart-wrap { height: 240px; } }
+        @media (max-width: 700px) { .forward-pe-latest { grid-template-columns: repeat(2, 1fr); } .forward-pe-chart-grid { grid-template-columns: 1fr; } .forward-pe-mini-chart { height: 205px; } }
     </style>
 </body>
 </html>
