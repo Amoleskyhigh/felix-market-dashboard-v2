@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   update-forward-pe:
@@ -29,3 +31,14 @@ jobs:
           git add forward-pe-history.json
           git commit -m "chore: update Trefis ETF forward P/E history"
           git push
+      # A push made with GITHUB_TOKEN does not trigger another workflow.
+      # Deploy Pages in this same run so the freshly committed JSON is live.
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload dashboard to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - name: Deploy dashboard to Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
