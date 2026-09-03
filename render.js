@@ -26,24 +26,24 @@
 
         if (d.qqq) {
             document.getElementById('v-qqq').innerText = '$' + d.qqq.currentPrice.toFixed(1);
-            const mtd = pct(d.qqq.currentPrice, d.qqq.previousClose || d.qqq.currentPrice);
+            const mtd = monthToDatePct(d.qqq);
             document.getElementById('s-qqq').innerHTML = colorPct(mtd);
             document.getElementById('mtd-qqq').innerHTML = colorPct(mtd);
         }
         if (d.smh) {
             document.getElementById('v-smh').innerText = '$' + d.smh.currentPrice.toFixed(1);
-            const mtd = pct(d.smh.currentPrice, d.smh.previousClose || d.smh.currentPrice);
+            const mtd = monthToDatePct(d.smh);
             document.getElementById('s-smh').innerHTML = colorPct(mtd);
             document.getElementById('mtd-smh').innerHTML = colorPct(mtd);
         }
         if (d.boxx) {
             document.getElementById('v-boxx').innerText = '$' + d.boxx.currentPrice.toFixed(2);
-            const mtd = pct(d.boxx.currentPrice, d.boxx.previousClose || d.boxx.currentPrice);
+            const mtd = monthToDatePct(d.boxx);
             document.getElementById('mtd-boxx').innerHTML = colorPct(mtd);
         }
         if (d.qld) {
             document.getElementById('v-qld').innerText = '$' + d.qld.currentPrice.toFixed(2);
-            const mtd = pct(d.qld.currentPrice, d.qld.previousClose || d.qld.currentPrice);
+            const mtd = monthToDatePct(d.qld);
             document.getElementById('s-qld').innerHTML = colorPct(mtd);
             document.getElementById('mtd-qld').innerHTML = colorPct(mtd);
         }
@@ -110,8 +110,16 @@
 
         if (d.twd) document.getElementById('v-twd').innerText = d.twd.currentPrice.toFixed(2);
         if (d.spy) {
-            const mtd = pct(d.spy.currentPrice, d.spy.previousClose || d.spy.currentPrice);
+            const mtd = monthToDatePct(d.spy);
             document.getElementById('mtd-spy').innerHTML = colorPct(mtd);
+        }
+        if (d.igv) {
+            const mtd = monthToDatePct(d.igv);
+            if (mtd !== null) document.getElementById('mtd-igv').innerHTML = colorPct(mtd);
+        }
+        if (d.qtum) {
+            const mtd = monthToDatePct(d.qtum);
+            if (mtd !== null) document.getElementById('mtd-qtum').innerHTML = colorPct(mtd);
         }
     }
 

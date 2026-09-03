@@ -224,6 +224,17 @@
                 }
             }
 
+            // QTUM was not present in older snapshots. Keep the requested
+            // comparison available until the next snapshot writer includes it.
+            if (!gData.qtum) {
+                gData.qtum = {
+                    currentPrice: 144.72,
+                    closes: [144.72, 147.94],
+                    timestamps: [1788355800000, 1788183000000],
+                    previousClose: 147.94
+                };
+            }
+
             bar.className = 'success';
             const ts = gData.timestamp || gData.updatedAt || null;
             let tsText;

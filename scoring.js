@@ -16,7 +16,34 @@
         return closes.map((_, i) => i < period-1 ? null : closes.slice(i-period+1, i+1).reduce((a,b)=>a+b,0)/period);
     }
     function pct(val, ref) { return ((val - ref) / ref * 100); }
-    function colorPct(v) { return v >= 0 ? `<span class="up">+${v.toFixed(2)}%</span>` : `<span class="down">${v.toFixed(2)}%</span>`; }
+    function colorPct(v) {
+        if (!Number.isFinite(v)) return '<span class="neutral">N/A</span>';
+        return v >= 0 ? `<span class="up">+${v.toFixed(2)}%</span>` : `<span class="down">${v.toFixed(2)}%</span>`;
+    }
+    // MTD = current value versus the last close before the current month.
+    // This is the standard month-open baseline; fall back to the first
+    // current-month close or previousClose for short/legacy snapshots.
+    function monthToDatePct(asset) {
+        if (!asset || !Number.isFinite(asset.currentPrice)) return null;
+        const timestamps = asset.timestamps || [];
+        const closes = asset.closes || [];
+        const pairs = timestamps.map((rawTs, i) => {
+            const ts = rawTs < 1e12 ? rawTs * 1000 : rawTs;
+            return [ts, closes[i]];
+        }).filter(([ts, close]) => Number.isFinite(ts) && Number.isFinite(close))
+          .sort((a, b) => a[0] - b[0]);
+        const monthDate = pairs.length ? new Date(pairs[pairs.length - 1][0]) : new Date();
+        const month = `${monthDate.getUTCFullYear()}-${monthDate.getUTCMonth()}`;
+        const firstMonthTs = pairs.find(([ts]) => {
+            const date = new Date(ts);
+            return `${date.getUTCFullYear()}-${date.getUTCMonth()}` === month;
+        })?.[0];
+        const preMonthPairs = pairs.filter(([ts]) => firstMonthTs === undefined || ts < firstMonthTs);
+        const base = preMonthPairs[preMonthPairs.length - 1]?.[1]
+            ?? pairs.find(([ts]) => ts === firstMonthTs)?.[1]
+            ?? asset.previousClose;
+        return Number.isFinite(base) && base !== 0 ? pct(asset.currentPrice, base) : null;
+    }
     // Normalize HY OAS: FRED returns %, scoring/display expects bp (e.g. 2.86 → 286)
     function normHyOAS(v) { return v !== null && v < 10 ? Math.round(v * 100) : v; }
 
