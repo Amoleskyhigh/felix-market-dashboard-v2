@@ -7,8 +7,10 @@ then write the updated market-data-snapshot.json in-place.
 Data sources:
   - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, IGV, SPX, IXIC
   - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/IGV(100 each)
-  - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY), Forward P/E
-  - FRED CSV                    : BAMLH0A0HYM2 (HY OAS), CAPE (Shiller PE)
+  - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY),
+                                  ^SPXA200R (Breadth), Forward P/E
+  - FRED CSV                    : BAMLH0A0HYM2 (HY OAS)
+  - multpl.com                  : Shiller CAPE (current + monthly history)
   - CNN Fear & Greed            : score, rating, history
 """
 
@@ -162,6 +164,15 @@ def yfinance_tnx(max_bars=252):
     return yfinance_ticker("^TNX", period="2y", max_bars=max_bars, label="TNX ^TNX")
 
 
+def fetch_breadth(max_bars=60):
+    """
+    Fetch % of S&P 500 stocks above their 200-day moving average via yfinance (^SPXA200R).
+    ^SPXA200R is the NYSE/CBOE breadth index published on Yahoo Finance.
+    Returns (pct: float|None, series: [(ts_ms, pct), ...] newest-first).
+    """
+    return yfinance_ticker("^SPXA200R", period="3mo", max_bars=max_bars, label="breadth ^SPXA200R")
+
+
 def fetch_forward_pe():
     """
     Compute weighted-average NTM Forward P/E for SPY, QQQ, SMH
@@ -285,13 +296,19 @@ def fetch_multpl_cape():
             headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
         )
         r.raise_for_status()
-        # Use double-quoted raw string to avoid single-quote escaping issues
+        # Primary regex
         match = re.search(r"""id=["'](current|value)["'].*?</b>\s*([\d.]+)""", r.text, re.DOTALL)
         if match:
             result["current"] = float(match.group(2))
-            log(f"multpl.com CAPE current OK: {result['current']}")
+            log(f"multpl.com CAPE current OK (primary): {result['current']}")
         else:
-            log("WARN multpl.com CAPE: could not parse current value")
+            # Fallback: broader search for current value div
+            match2 = re.search(r'id=["\']current["\'][^>]*>.*?([0-9]+\.[0-9]+)', r.text, re.DOTALL)
+            if match2:
+                result["current"] = float(match2.group(1))
+                log(f"multpl.com CAPE current OK (fallback): {result['current']}")
+            else:
+                log("WARN multpl.com CAPE: could not parse current value with any pattern")
     except Exception as e:
         log(f"WARN multpl.com CAPE current: {e}")
 
@@ -321,7 +338,7 @@ def fetch_multpl_cape():
             log(f"multpl.com CAPE history OK: {len(hist)} months")
             result["history"] = hist
         else:
-            log("WARN multpl.com CAPE: could not parse history table")
+            log("WARN multpl.com CAPE: could not parse history table (site may have changed HTML)")
     except Exception as e:
         log(f"WARN multpl.com CAPE history: {e}")
 
@@ -587,6 +604,30 @@ def main():
     else:
         log("WARN Forward P/E: no data fetched, keeping existing snapshot values")
 
+    # ── 2h. Market Breadth via yfinance (^SPXA200R) ───────────────────────────
+    # ^SPXA200R = % of S&P 500 stocks trading above their 200-day moving average
+    log("yfinance ^SPXA200R (S&P 500 breadth: % stocks above 200-day MA) ...")
+    breadth_pct, breadth_series = fetch_breadth(max_bars=60)
+    if breadth_series:
+        if "breadth" not in snap:
+            snap["breadth"] = {}
+        snap["breadth"]["pct"] = breadth_pct if breadth_pct else breadth_series[0][1]
+        snap["breadth"]["history"] = [
+            {
+                "date": datetime.datetime.utcfromtimestamp(ts / 1000).strftime("%Y-%m-%d"),
+                "value": round(c, 2),
+            }
+            for ts, c in breadth_series
+        ]
+        log(f"breadth OK: pct={snap['breadth']['pct']:.1f}%, {len(breadth_series)} bars stored")
+    elif breadth_pct is not None:
+        if "breadth" not in snap:
+            snap["breadth"] = {"pct": breadth_pct, "history": []}
+        snap["breadth"]["pct"] = breadth_pct
+        log(f"breadth price-only: {breadth_pct:.1f}%")
+    else:
+        log("WARN breadth: ^SPXA200R no data from yfinance, keeping existing snapshot values")
+
     # ── 3. FRED ───────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) ...")
     hy_rows = fred_series("BAMLH0A0HYM2")
@@ -605,12 +646,33 @@ def main():
 
     log("Shiller CAPE (multpl.com) ...")
     cape_data = fetch_multpl_cape()
-    snap["shiller"]["current"] = cape_data.get("current")
-    new_hist = cape_data.get("history", {})
+    # Only overwrite current if we got a valid non-None value
+    # (prevents clobbering a good value with None on transient fetch failures)
+    if cape_data.get("current") is not None:
+        snap["shiller"]["current"] = cape_data["current"]
+    else:
+        log("WARN Shiller PE: fetch returned None, keeping existing current value")
+
+    # Fix: shiller history in snapshot is a LIST of {"date", "value"} dicts,
+    # but new_hist from fetch_multpl_cape() is a DICT of {YYYY-MM: float}.
+    # The old code called existing.update(new_hist) on the list → AttributeError crash.
+    new_hist = cape_data.get("history", {})  # dict: {"YYYY-MM": float, ...}
     if new_hist:
-        existing = snap["shiller"].get("history", {})
-        existing.update(new_hist)
-        snap["shiller"]["history"] = existing
+        existing = snap["shiller"].get("history", [])
+        if isinstance(existing, list):
+            # Collect existing YYYY-MM keys (first 7 chars of date field)
+            existing_months = {e.get("date", "")[:7] for e in existing}
+            new_entries = [
+                {"date": k, "value": v}
+                for k, v in sorted(new_hist.items(), reverse=True)
+                if k[:7] not in existing_months
+            ]
+            snap["shiller"]["history"] = new_entries + existing
+        else:
+            # Legacy dict format — merge directly
+            existing.update(new_hist)
+            snap["shiller"]["history"] = existing
+        snap["shiller"]["history"] = snap["shiller"]["history"][:200]
 
     # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────
     log("CNN Fear & Greed ...")
