@@ -32,6 +32,10 @@
         const labels = (history.snapshots || []).map(s => s.date);
         const grid = document.getElementById('forward-pe-chart-grid');
         grid.innerHTML = symbols.map(symbol => `<div class="forward-pe-mini-chart"><canvas id="chart-forward-pe-${symbol.toLowerCase()}" aria-label="${symbol} forward P/E 趨勢圖"></canvas></div>`).join('');
+        if (typeof Chart === 'undefined' || !Chart._adapters || !Chart._adapters._date) {
+            symbols.forEach(symbol => drawForwardFallback(symbol, history, values, colors[symbol]));
+            return;
+        }
         charts.forEach(existing => existing.destroy());
         const bands = history.valuationBands || defaultBands;
         charts = symbols.map(symbol => {
@@ -53,6 +57,17 @@
                     scales: { x: { ticks: { color: '#888', maxTicksLimit: 6 }, grid: { color: '#1a2a3a' } }, y: { title: { display: true, text: 'Forward P/E (x)', color: '#888' }, ticks: { color: '#888' }, grid: { color: '#1a2a3a' }, suggestedMin: Math.max(0, lower - (upper - lower) * .08), suggestedMax: upper + (upper - lower) * .08 } } }
             });
         });
+    }
+    function drawForwardFallback(symbol, history, values, color) {
+        const canvas = document.getElementById(`chart-forward-pe-${symbol.toLowerCase()}`);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d'); const w = canvas.width = Math.max(canvas.clientWidth * 2, 600); const h = canvas.height = 420;
+        const vals = (history.snapshots || []).map(s => Number(s.etfs?.[symbol]?.value)).filter(Number.isFinite);
+        if (!vals.length) { ctx.fillStyle = '#aaa'; ctx.fillText(`${symbol}: N/A`, 20, 30); return; }
+        const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
+        ctx.fillStyle = '#121e2a'; ctx.fillRect(0, 0, w, h); ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath();
+        vals.forEach((v, i) => { const x = 24 + i * (w - 48) / Math.max(vals.length - 1, 1); const y = h - 35 - (v - min) / span * (h - 75); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+        ctx.fillStyle = '#aaa'; ctx.font = '24px sans-serif'; ctx.fillText(`${symbol} · latest ${vals[vals.length - 1].toFixed(2)}x`, 20, 28);
     }
     async function load() {
         try { const response = await fetch('./forward-pe-history.json?t=' + Date.now(), { cache: 'no-store' }); if (!response.ok) throw new Error(`HTTP ${response.status}`); render(await response.json()); }

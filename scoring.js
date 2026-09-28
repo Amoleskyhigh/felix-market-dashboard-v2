@@ -50,16 +50,17 @@
     // ─── Dual-Axis Scoring ──────────────────────────────────────────
     function computeScore() {
         const d = gData;
-        const vix      = d.vix?.currentPrice ?? 20;
-        const fg       = d.fearGreed?.score ?? 50;
+        const vix      = d.vix?.currentPrice ?? null;
+        const fg       = d.fearGreed?.score ?? null;
         const hyOAS    = normHyOAS(d.hyOAS?.current ?? null);
-        const breadth  = d.breadth?.pct ?? null;
-        const copper   = d.copper?.currentPrice ?? 4.5;
+        const breadth  = d.breadth?.status === 'available' && Number.isFinite(d.breadth?.pct)
+            ? d.breadth.pct : null;
+        const copper   = d.copper?.currentPrice ?? null;
         const copperMA3 = calcMA(d.copper?.closes, 3) ?? copper;
-        const tnx      = d.tnx?.currentPrice ?? 4.3;
+        const tnx      = d.tnx?.currentPrice ?? null;
         const tnxMA20  = calcMA(d.tnx?.closes, 20) ?? tnx;
-        const pe       = d.shiller?.current ?? 35;
-        const dxy      = d.dxy?.currentPrice ?? 100;
+        const pe       = d.shiller?.status === 'unavailable' ? null : d.shiller?.current ?? null;
+        const dxy      = d.dxy?.currentPrice ?? null;
         const dxyMA20  = calcMA(d.dxy?.closes, 20) ?? dxy;
 
         const spyCloses = d.spy?.closes ?? d.spx?.closes ?? [];
@@ -68,10 +69,10 @@
         const spyPct    = pct(spy, spyMA200);
 
         // ── TREND AXIS (0–8, momentum) ──
-        const t1 = copper > copperMA3 ? 2 : 0;
-        const t2 = tnx < tnxMA20 ? 2 : 0;
-        const t3 = dxy < dxyMA20 ? 2 : 0;
-        const t4 = breadth !== null ? (breadth > 70 ? 2 : breadth > 50 ? 1 : 0) : 1; // default 1 if unknown
+        const t1 = copper !== null && copperMA3 !== null && copper > copperMA3 ? 2 : 0;
+        const t2 = tnx !== null && tnxMA20 !== null && tnx < tnxMA20 ? 2 : 0;
+        const t3 = dxy !== null && dxyMA20 !== null && dxy < dxyMA20 ? 2 : 0;
+        const t4 = breadth !== null ? (breadth > 70 ? 2 : breadth > 50 ? 1 : 0) : 0;
         const trendRaw = t1 + t2 + t3 + t4;
 
         // K factor: SPY vs MA200
@@ -84,8 +85,8 @@
 
         // ── SENTIMENT AXIS (-3 to +9, contrarian) ──
         // Inverted: high fear = high score = buy signal
-        const s1 = vix > 35 ? 3 : vix > 28 ? 2 : vix > 20 ? 1 : vix > 15 ? 0 : -1;
-        const s2 = fg < 20 ? 3 : fg < 40 ? 2 : fg < 60 ? 1 : fg < 75 ? 0 : -1;
+        const s1 = vix === null ? 0 : vix > 35 ? 3 : vix > 28 ? 2 : vix > 20 ? 1 : vix > 15 ? 0 : -1;
+        const s2 = fg === null ? 0 : fg < 20 ? 3 : fg < 40 ? 2 : fg < 60 ? 1 : fg < 75 ? 0 : -1;
         const s3 = hyOAS !== null ? (hyOAS > 600 ? 3 : hyOAS > 500 ? 2 : hyOAS > 400 ? 1 : hyOAS > 300 ? 0 : -1) : 0;
         const sentimentScore = s1 + s2 + s3;
 
@@ -120,7 +121,13 @@
 
         // Shiller PE hard cap
         let peNote = '';
-        if (pe > PE_CAP1) {
+        const peAvailable = Number.isFinite(pe);
+        if (!peAvailable) {
+            // Missing valuation data must be conservative: do not allow the
+            // allocation engine to treat null as numeric zero or enable QLD.
+            equityPct = Math.min(equityPct, 0.55);
+            peNote = '⚠️ Shiller PE unavailable → valuation guard cap 55%';
+        } else if (pe > PE_CAP1) {
             equityPct = Math.min(equityPct, 0.55);
             peNote = `⚠️ Shiller PE ${pe.toFixed(2)} > 39.33 → 股票上限 55%`;
         } else if (pe > PE_CAP2) {
@@ -130,7 +137,7 @@
 
         // Distribute equity
         const equityPctRound = Math.round(equityPct * 100);
-        const qldPct  = (equityPct > 0.80 && pe < PE_CAP2) ? Math.round(equityPct * 0.10 * 100) : 0;
+        const qldPct  = (equityPct > 0.80 && peAvailable && pe < PE_CAP2) ? Math.round(equityPct * 0.10 * 100) : 0;
         const rem     = equityPct - qldPct / 100;
         const qqqPct  = Math.round(rem * 0.44 * 100);
         const smhPct  = Math.round(rem * 0.56 * 100);

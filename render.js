@@ -3,12 +3,17 @@
         const d = gData;
 
         // Shiller PE
-        if (d.shiller) {
+        if (d.shiller?.status !== 'unavailable' && Number.isFinite(d.shiller?.current)) {
             const z = (d.shiller.current - AI_MEAN) / AI_SD;
             document.getElementById('v-pe').innerText = d.shiller.current.toFixed(2);
             const st = document.getElementById('s-pe');
             st.innerText = `Z: ${z.toFixed(2)}σ`;
             st.className = 'kpi-status ' + (z > 1.5 ? 'down' : z > 0.8 ? 'neutral' : 'up');
+        } else {
+            document.getElementById('v-pe').innerText = 'N/A';
+            const st = document.getElementById('s-pe');
+            st.innerText = '資料失效，未納入配置判斷';
+            st.className = 'kpi-status neutral';
         }
 
         // SPY vs MA200
@@ -82,30 +87,39 @@
         // Market Breadth
         const brEl = document.getElementById('v-breadth');
         const brSt = document.getElementById('s-breadth');
-        if (d.breadth && d.breadth.pct !== undefined) {
+        if (d.breadth?.status === 'available' && Number.isFinite(d.breadth.pct)) {
             const b = d.breadth.pct;
             brEl.innerText = b.toFixed(0) + '%';
             const s = b > 70 ? '🟢 強勢廣度 (+2)' : b > 50 ? '🟡 中性廣度 (+1)' : '🔴 弱勢廣度 (0)';
             brSt.innerText = s;
             brSt.className = 'kpi-status ' + (b > 70 ? 'up' : b > 50 ? 'neutral' : 'down');
         } else {
-            brEl.innerText = '估算';
-            brSt.innerText = '採估算值(+1)';
+            brEl.innerText = 'N/A';
+            brSt.innerText = '資料失效，未計分';
             brSt.className = 'kpi-status neutral';
         }
 
         if (sc) {
-            document.getElementById('v-copper').innerText = '$' + sc.copper.toFixed(3);
-            document.getElementById('s-copper').innerText = sc.t1 ? `🟢 高於MA3 $${sc.copperMA3.toFixed(3)} (+2)` : `🔴 低於MA3 $${sc.copperMA3.toFixed(3)} (0)`;
-            document.getElementById('s-copper').className = 'kpi-status ' + (sc.t1 ? 'up' : 'down');
+            const copperAvailable = Number.isFinite(sc.copper) && Number.isFinite(sc.copperMA3);
+            document.getElementById('v-copper').innerText = copperAvailable ? '$' + sc.copper.toFixed(3) : 'N/A';
+            document.getElementById('s-copper').innerText = copperAvailable
+                ? (sc.t1 ? `🟢 高於MA3 $${sc.copperMA3.toFixed(3)} (+2)` : `🔴 低於MA3 $${sc.copperMA3.toFixed(3)} (0)`)
+                : '資料失效，未計分';
+            document.getElementById('s-copper').className = 'kpi-status ' + (copperAvailable ? (sc.t1 ? 'up' : 'down') : 'neutral');
 
-            document.getElementById('v-tnx').innerText = sc.tnx.toFixed(2) + '%';
-            document.getElementById('s-tnx').innerText = sc.t2 ? `🟢 低於MA20 ${sc.tnxMA20.toFixed(2)}% (+2)` : `🔴 高於MA20 ${sc.tnxMA20.toFixed(2)}% (0)`;
-            document.getElementById('s-tnx').className = 'kpi-status ' + (sc.t2 ? 'up' : 'down');
+            const tnxAvailable = Number.isFinite(sc.tnx) && Number.isFinite(sc.tnxMA20);
+            document.getElementById('v-tnx').innerText = tnxAvailable ? sc.tnx.toFixed(2) + '%' : 'N/A';
+            document.getElementById('s-tnx').innerText = tnxAvailable
+                ? (sc.t2 ? `🟢 低於MA20 ${sc.tnxMA20.toFixed(2)}% (+2)` : `🔴 高於MA20 ${sc.tnxMA20.toFixed(2)}% (0)`)
+                : '資料失效，未計分';
+            document.getElementById('s-tnx').className = 'kpi-status ' + (tnxAvailable ? (sc.t2 ? 'up' : 'down') : 'neutral');
 
-            document.getElementById('v-dxy').innerText = sc.dxy.toFixed(1);
-            document.getElementById('s-dxy').innerText = sc.t3 ? `🟢 低於MA20 ${sc.dxyMA20.toFixed(1)} (+2)` : `🔴 高於MA20 ${sc.dxyMA20.toFixed(1)} (0)`;
-            document.getElementById('s-dxy').className = 'kpi-status ' + (sc.t3 ? 'up' : 'down');
+            const dxyAvailable = Number.isFinite(sc.dxy) && Number.isFinite(sc.dxyMA20);
+            document.getElementById('v-dxy').innerText = dxyAvailable ? sc.dxy.toFixed(1) : 'N/A';
+            document.getElementById('s-dxy').innerText = dxyAvailable
+                ? (sc.t3 ? `🟢 低於MA20 ${sc.dxyMA20.toFixed(1)} (+2)` : `🔴 高於MA20 ${sc.dxyMA20.toFixed(1)} (0)`)
+                : '資料失效，未計分';
+            document.getElementById('s-dxy').className = 'kpi-status ' + (dxyAvailable ? (sc.t3 ? 'up' : 'down') : 'neutral');
         }
 
         if (d.twd) document.getElementById('v-twd').innerText = d.twd.currentPrice.toFixed(2);
@@ -178,6 +192,11 @@
     let quadrantChart = null;
 
     function renderQuadrant(sc) {
+        if (typeof Chart === 'undefined' || !Chart._adapters || !Chart._adapters._date) {
+            const el = document.getElementById('chart-quadrant')?.parentElement;
+            if (el) el.innerHTML = '<div class="kpi-status neutral">圖表套件未載入；核心走勢仍可用離線模式顯示。</div>';
+            return;
+        }
         const canvasEl = document.getElementById('chart-quadrant');
         if (!canvasEl) return;
 
