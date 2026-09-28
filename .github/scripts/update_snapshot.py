@@ -689,20 +689,25 @@ def main():
     if breadth_series:
         if "breadth" not in snap:
             snap["breadth"] = {}
-        snap["breadth"]["pct"] = breadth_pct if breadth_pct else breadth_series[0][1]
-        snap["breadth"]["history"] = [
+        breadth = snap["breadth"]
+        breadth["pct"] = breadth_pct if breadth_pct is not None else breadth_series[0][1]
+        breadth["history"] = [
             {
                 "date": datetime.datetime.utcfromtimestamp(ts / 1000).strftime("%Y-%m-%d"),
                 "value": round(c, 2),
             }
             for ts, c in breadth_series
         ]
-        log(f"breadth OK: pct={snap['breadth']['pct']:.1f}%, {len(breadth_series)} bars stored")
+        breadth["history"].sort(key=lambda item: item["date"], reverse=True)
+        breadth["asOf"] = breadth["history"][0]["date"]
+        breadth["status"] = "available"
+        breadth.pop("error", None)
+        log(f"breadth OK: pct={breadth['pct']:.1f}%, asOf={breadth['asOf']}, {len(breadth_series)} bars stored")
     elif breadth_pct is not None:
-        if "breadth" not in snap:
-            snap["breadth"] = {"pct": breadth_pct, "history": []}
-        snap["breadth"]["pct"] = breadth_pct
-        log(f"breadth price-only: {breadth_pct:.1f}%")
+        # A current percentage without a dated history cannot safely drive the
+        # chart or allocation score. Keep this explicitly unavailable.
+        mark_unavailable(snap, "breadth", "breadth source returned no dated history")
+        log(f"WARN breadth: price-only value {breadth_pct:.1f}% discarded without dated history")
     else:
         log("WARN breadth: ^SPXA200R no data from yfinance, keeping existing snapshot values")
 
