@@ -199,29 +199,48 @@
         renderAlloc(sc);
     }
 
+    // ─── 資料來源說明 ────────────────────────────────────────────────────────
+    // 架構：每日 Actions (update-snapshot.yml) 更新快照 → push main →
+    //        觸發 static.yml 重新部署 GitHub Pages → CDN 快取自動清除
+    //
+    // 抓取策略（依優先順序）：
+    //   1. 同源 GitHub Pages：./market-data-snapshot.json（cache: no-store）
+    //      → Pages 每次重新部署時 CDN 快取被清除，永遠是最新版本
+    //   2. raw.githubusercontent.com（備援，帶唯一 timestamp 繞過 CDN 快取）
+    //
+    // 為何不用 /api/data：GitHub Pages 是靜態服務，沒有 API 端點，嘗試必失敗。
+
     // ─── Init ───────────────────────────────────────────────────────────
     async function init() {
         const bar = document.getElementById('status-bar');
         try {
-            let dataSource = 'live API';
+            let dataSource = 'snapshot';
             let res;
+
+            // 優先從同源 GitHub Pages 抓快照
+            // cache: 'no-store' 跳過瀏覽器快取；Pages CDN 快取在每次部署時被清除
+            const SNAPSHOT_PAGES = './market-data-snapshot.json';
+            const SNAPSHOT_RAW   = 'https://raw.githubusercontent.com/Amoleskyhigh/felix-market-dashboard-v2/main/market-data-snapshot.json';
+
+            async function parseSnapshot(text) {
+                try {
+                    return JSON.parse(text);
+                } catch (_) {
+                    return JSON.parse(atob(text.trim()));
+                }
+            }
+
             try {
-                res = await fetch('/api/data?t=' + Date.now());
-                if (!res.ok) throw new Error('live api failed');
-                gData = await res.json();
-            } catch (_) {
-                dataSource = 'snapshot';
-                // Use raw.githubusercontent.com to bypass GitHub Pages CDN (Fastly ignores query params)
-                const SNAPSHOT_RAW = 'https://raw.githubusercontent.com/Amoleskyhigh/felix-market-dashboard-v2/main/market-data-snapshot.json';
+                res = await fetch(SNAPSHOT_PAGES, { cache: 'no-store' });
+                if (!res.ok) throw new Error('pages fetch failed: ' + res.status);
+                gData = await parseSnapshot(await res.text());
+            } catch (pagesErr) {
+                // 備援：raw.githubusercontent.com（帶唯一 timestamp 強制繞過 CDN）
+                console.warn('GitHub Pages fetch failed, falling back to raw:', pagesErr.message);
+                dataSource = 'snapshot (raw fallback)';
                 res = await fetch(SNAPSHOT_RAW + '?t=' + Date.now());
                 if (!res.ok) throw new Error('無法載入 market-data-snapshot.json');
-                // Robust parse: handle both plain JSON and base64-encoded JSON
-                const rawSnap = await res.text();
-                try {
-                    gData = JSON.parse(rawSnap);
-                } catch (_b64) {
-                    gData = JSON.parse(atob(rawSnap.trim()));
-                }
+                gData = await parseSnapshot(await res.text());
             }
 
             // QTUM was not present in older snapshots. Keep the requested
@@ -243,9 +262,7 @@
             } catch (_) {
                 tsText = ts ? new Date(ts).toLocaleString() : new Date().toLocaleString();
             }
-            bar.innerText = dataSource === 'live API'
-                ? `✅ 數據同步完成（即時） ${tsText}`
-                : `✅ 數據已載入（快照） ${tsText}`;
+            bar.innerText = `✅ 數據已載入（${dataSource}） ${tsText}`;
 
             const sc = computeScore();
             const panic = checkPanic();
