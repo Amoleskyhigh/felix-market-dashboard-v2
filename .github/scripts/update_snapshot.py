@@ -45,28 +45,28 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
                     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
 
 # snapshot key -> (yahoo symbol, bars to keep)
-# SPY keeps 250 bars so the MA200 line / K-factor have enough history.
+# 252 trading days ≈ 1 calendar year
 PRICE_TICKERS = {
-    "spy":    ("SPY",       250),
-    "qqq":    ("QQQ",        60),
-    "smh":    ("SMH",        60),
-    "igv":    ("IGV",        60),
-    "qtum":   ("QTUM",       60),
-    "boxx":   ("BOXX",       60),
-    "qld":    ("QLD",        60),
-    "spx":    ("^GSPC",      60),
-    "ixic":   ("^IXIC",      60),
-    "sox":    ("^SOX",       60),
-    "vix":    ("^VIX",       60),
-    "tnx":    ("^TNX",       60),
-    "copper": ("HG=F",       60),
-    "dxy":    ("DX-Y.NYB",   60),
-    "twd":    ("TWD=X",      60),
+    "spy":    ("SPY",       252),
+    "qqq":    ("QQQ",       252),
+    "smh":    ("SMH",       252),
+    "igv":    ("IGV",       252),
+    "qtum":   ("QTUM",      252),
+    "boxx":   ("BOXX",      252),
+    "qld":    ("QLD",       252),
+    "spx":    ("^GSPC",     252),
+    "ixic":   ("^IXIC",     252),
+    "sox":    ("^SOX",      252),
+    "vix":    ("^VIX",      252),
+    "tnx":    ("^TNX",      252),
+    "copper": ("HG=F",      252),
+    "dxy":    ("DX-Y.NYB",  252),
+    "twd":    ("TWD=X",     252),
 }
-BREADTH_BARS = 60
-HY_BARS = 60
-FNG_BARS = 60
-CAPE_MONTHS = 124
+BREADTH_BARS = 252   # 1 year of daily breadth readings
+HY_BARS = 252        # 1 year of daily HY OAS
+FNG_BARS = 90        # CNN API returns ~150 days; keep 90
+CAPE_MONTHS = 124    # ~10 years of monthly Shiller PE
 
 status = {}
 
@@ -157,51 +157,33 @@ def fetch_forward_pe():
     """
     Compute weighted-average NTM Forward P/E for SPY, QQQ, SMH
     using yfinance individual-stock forwardPE data.
-
-    Why this approach:
-      - yfinance .info.get('forwardPE') works reliably for individual stocks
-        but returns None for ETFs.
-      - External scraping targets (finviz, WSJ, multpl forward PE, vaneck,
-        invesco) are blocked or JS-rendered from GitHub Actions runners.
-      - Solution: fetch NTM forwardPE for each ETF's top holdings, then
-        compute a coverage-normalised weighted average.
-
-    Accuracy: covers ~40% (SPY) / ~48% (QQQ) / ~65% (SMH) of each ETF
-    by market cap. The top holdings dominate index PE so the result is
-    typically within +/-1.5x of the true index-level forward PE.
-
-    Returns {"spy": float|None, "qqq": float|None, "smh": float|None,
-             "method": "holdings-weighted"}
     """
     if not HAS_YF:
         log("WARN fetch_forward_pe: yfinance not available")
         return {"spy": None, "qqq": None, "smh": None, "method": "holdings-weighted"}
 
-    # ── ETF top-holdings tables ────────────────────────────────────────────────
-    # Approximate weights as of mid-2026. Each list covers ~40-65% of the ETF.
     SP500_HOLDINGS = [
         ("AAPL",  0.073), ("MSFT",  0.065), ("NVDA",  0.062),
         ("AMZN",  0.041), ("META",  0.031), ("GOOGL", 0.023),
         ("GOOG",  0.019), ("BRK-B", 0.017), ("AVGO",  0.017),
         ("JPM",   0.015), ("LLY",   0.013), ("TSLA",  0.013),
         ("UNH",   0.011), ("XOM",   0.011), ("V",     0.010),
-    ]  # ~40% of S&P 500 market cap
+    ]
 
     QQQ_HOLDINGS = [
         ("MSFT",  0.090), ("AAPL",  0.087), ("NVDA",  0.080),
         ("AMZN",  0.053), ("META",  0.042), ("GOOGL", 0.029),
         ("GOOG",  0.025), ("AVGO",  0.022), ("TSLA",  0.017),
         ("COST",  0.015),
-    ]  # ~48% of Nasdaq-100
+    ]
 
     SMH_HOLDINGS = [
         ("NVDA",  0.205), ("TSM",   0.125), ("AVGO",  0.083),
         ("ASML",  0.056), ("QCOM",  0.044), ("AMD",   0.043),
         ("TXN",   0.038), ("INTC",  0.030), ("AMAT",  0.030),
         ("MU",    0.028),
-    ]  # ~65% of SMH
+    ]
 
-    # ── Fetch forwardPE for all unique tickers via yfinance ───────────────────
     all_syms = sorted({s for h in [SP500_HOLDINGS, QQQ_HOLDINGS, SMH_HOLDINGS]
                        for s, _ in h})
     pe_cache = {}
@@ -217,10 +199,9 @@ def fetch_forward_pe():
         except Exception as exc:
             log(f"  WARN {sym}: {exc}")
 
-    # ── Weighted-average helper ───────────────────────────────────────────────
     def weighted_pe(holdings, label):
         covered_w = sum(w for s, w in holdings if s in pe_cache)
-        if covered_w < 0.15:  # need at least 15% weight coverage
+        if covered_w < 0.15:
             log(f"  {label}: only {covered_w:.1%} weight covered — returning None")
             return None
         wpe = sum(pe_cache[s] * w for s, w in holdings if s in pe_cache) / covered_w
@@ -263,7 +244,7 @@ def update_hy_oas(snap):
             raise ValueError("empty CSV")
         rows = rows[-HY_BARS:][::-1]
         snap["hyOAS"] = {
-            "current": int(round(rows[0][1] * 100)),       # % → bp
+            "current": int(round(rows[0][1] * 100)),
             "asOf": rows[0][0],
             "history": [{"date": d, "value": int(round(v * 100))} for d, v in rows],
         }
@@ -279,8 +260,6 @@ def update_cape(snap):
         r = requests.get("https://www.multpl.com/shiller-pe/table/by-month",
                          timeout=30, headers=UA)
         r.raise_for_status()
-        # Values are preceded by an HTML entity (e.g. "&#x2002;"), so allow
-        # any non-digit filler between <td> and the number.
         rows = re.findall(
             r"<td[^>]*>\s*([A-Z][a-z]{2} \d{1,2},\s*\d{4})\s*</td>\s*"
             r"<td[^>]*>(?:\s|&[#\w]+;)*([\d.]+)",
@@ -315,7 +294,7 @@ def update_fear_greed(snap):
         for item in data.get("fear_and_greed_historical", {}).get("data", []):
             if item.get("x") is not None and item.get("y") is not None:
                 d = datetime.datetime.utcfromtimestamp(item["x"] / 1000).strftime("%Y-%m-%d")
-                by_date[d] = int(round(float(item["y"])))   # last value per day wins
+                by_date[d] = int(round(float(item["y"])))
         score = int(round(float(fg["score"])))
         today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         by_date[today] = score
@@ -357,7 +336,6 @@ def main():
     log(f"Snapshot written. {len(status) - len(failed)}/{len(status)} sources OK.")
     if failed:
         log("Failed (kept previous values): " + ", ".join(failed))
-    # Fail the job (→ GitHub e-mails you) only when the core price data is gone.
     if status.get("spy") != "ok" or len(failed) > len(status) // 2:
         sys.exit(1)
 
