@@ -6,7 +6,7 @@ then write the updated market-data-snapshot.json in-place.
 
 Data sources:
   - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, IGV, SPX, IXIC
-  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/IGV(100 each)
+  - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/IGV(252 each, full output)
   - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY),
                                   ^SPXA200R (Breadth), Forward P/E
   - FRED CSV                    : BAMLH0A0HYM2 (HY OAS)
@@ -40,8 +40,8 @@ CNN_URL  = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
 # Alpha Vantage free tier: 5 requests/min, 25/day → sleep 15s between calls
 RATE_SLEEP = 15
 
-# 每個 ticker 的 closes/timestamps 最多保留 60 筆
-MAX_CLOSES = 60
+# 每個 ticker 的 closes/timestamps 最多保留 252 筆（約 1 年交易日）
+MAX_CLOSES = 252
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 
@@ -141,9 +141,9 @@ def yfinance_ticker(yf_symbol, period="1y", max_bars=252, label=None):
         return None, []
 
 
-def yfinance_copper(max_bars=100):
+def yfinance_copper(max_bars=252):
     """Fetch copper futures (HG=F) via yfinance."""
-    return yfinance_ticker("HG=F", period="6mo", max_bars=max_bars, label="copper HG=F")
+    return yfinance_ticker("HG=F", period="1y", max_bars=max_bars, label="copper HG=F")
 
 
 def yfinance_dxy(max_bars=252):
@@ -154,9 +154,9 @@ def yfinance_dxy(max_bars=252):
     return yfinance_ticker("DX-Y.NYB", period="2y", max_bars=max_bars, label="DXY DX-Y.NYB")
 
 
-def yfinance_vix(max_bars=100):
+def yfinance_vix(max_bars=252):
     """Fetch VIX via yfinance. AV ^VIX stopped returning data reliably (May 2026)."""
-    return yfinance_ticker("^VIX", period="6mo", max_bars=max_bars, label="VIX ^VIX")
+    return yfinance_ticker("^VIX", period="1y", max_bars=max_bars, label="VIX ^VIX")
 
 
 def yfinance_tnx(max_bars=252):
@@ -164,13 +164,13 @@ def yfinance_tnx(max_bars=252):
     return yfinance_ticker("^TNX", period="2y", max_bars=max_bars, label="TNX ^TNX")
 
 
-def fetch_breadth(max_bars=60):
+def fetch_breadth(max_bars=252):
     """
     Fetch % of S&P 500 stocks above their 200-day moving average via yfinance (^SPXA200R).
     ^SPXA200R is the NYSE/CBOE breadth index published on Yahoo Finance.
     Returns (pct: float|None, series: [(ts_ms, pct), ...] newest-first).
     """
-    return yfinance_ticker("^SPXA200R", period="3mo", max_bars=max_bars, label="breadth ^SPXA200R")
+    return yfinance_ticker("^SPXA200R", period="1y", max_bars=max_bars, label="breadth ^SPXA200R")
 
 
 def fetch_forward_pe():
@@ -303,9 +303,9 @@ def fetch_multpl_cape():
             log(f"multpl.com CAPE current OK (primary): {result['current']}")
         else:
             # Fallback: broader search for current value div
-            match2 = re.search(r'id=["\']current["\'][^>]*>.*?([0-9]+\.[0-9]+)', r.text, re.DOTALL)
+            match2 = re.search(r'id=["\'](current|value)["\'][^>]*>.*?([0-9]+\.[0-9]+)', r.text, re.DOTALL)
             if match2:
-                result["current"] = float(match2.group(1))
+                result["current"] = float(match2.group(2))
                 log(f"multpl.com CAPE current OK (fallback): {result['current']}")
             else:
                 log("WARN multpl.com CAPE: could not parse current value with any pattern")
@@ -375,7 +375,7 @@ def set_series(snap, key, series, max_bars):
     """Replace closes/timestamps in snap[key] with time series data (最多 MAX_CLOSES 筆)."""
     if not series:
         return
-    subset = series[:min(max_bars, MAX_CLOSES)]  # 只保留最近 MAX_CLOSES 筆
+    subset = series[:min(max_bars, MAX_CLOSES)]
     if key not in snap:
         snap[key] = {}
     snap[key]["closes"]     = [c for _, c in subset]
@@ -392,7 +392,7 @@ def prepend_price(snap, key, price, now_ms, max_bars=MAX_CLOSES):
     # Guard: filter out corrupted timestamps (non-integer values from past bugs)
     existing_tss = [t for t in snap[key].get("timestamps", []) if isinstance(t, int)]
     tss = [now_ms] + existing_tss
-    closes = closes[:max_bars]  # 只保留最近 max_bars 筆
+    closes = closes[:max_bars]
     tss    = tss[:max_bars]
     snap[key]["closes"]     = closes
     snap[key]["timestamps"] = tss
@@ -448,14 +448,15 @@ def main():
         time.sleep(RATE_SLEEP)
 
     # ── 2. TIME_SERIES_DAILY (AV) ─────────────────────────────────────────────
+    # Use "full" for all to get up to 1 year of daily bars (capped at MAX_CLOSES=252)
     TS_SYMBOLS = [
-        ("SPY", "spy", 250, "full"),
-        ("QQQ", "qqq", 100, "compact"),
-        ("SMH", "smh", 100, "compact"),
-        ("IGV", "igv", 100, "compact"),
+        ("SPY", "spy", 252, "full"),
+        ("QQQ", "qqq", 252, "full"),
+        ("SMH", "smh", 252, "full"),
+        ("IGV", "igv", 252, "full"),
     ]
     for sym, key, max_bars, size in TS_SYMBOLS:
-        log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars, capped at {MAX_CLOSES}) ...")
+        log(f"TIME_SERIES_DAILY {sym} ({max_bars} bars) ...")
         series = av_time_series(sym, size)
         if series:
             set_series(snap, key, series, max_bars)
@@ -475,15 +476,15 @@ def main():
 
     # ── 2b. VIX via yfinance ──────────────────────────────────────────────────
     log("yfinance ^VIX ...")
-    vix_price, vix_series = yfinance_vix(max_bars=100)
+    vix_price, vix_series = yfinance_vix(max_bars=252)
     if vix_series:
-        set_series(snap, "vix", vix_series, 100)
+        set_series(snap, "vix", vix_series, 252)
         if "vix" not in snap:
             snap["vix"] = {}
         snap["vix"]["currentPrice"] = vix_price if vix_price else vix_series[0][1]
         log(f"VIX yfinance OK: current={snap['vix']['currentPrice']:.2f}, {len(snap['vix']['closes'])} bars stored")
     elif vix_price is not None:
-        prepend_price(snap, "vix", vix_price, now_ms, max_bars=100)
+        prepend_price(snap, "vix", vix_price, now_ms, max_bars=252)
         if "vix" not in snap:
             snap["vix"] = {}
         snap["vix"]["currentPrice"] = vix_price
@@ -511,14 +512,14 @@ def main():
 
     # ── 2d. COPPER via yfinance ───────────────────────────────────────────────
     log("yfinance HG=F (Copper) ...")
-    copper_price, copper_series = yfinance_copper(max_bars=100)
+    copper_price, copper_series = yfinance_copper(max_bars=252)
     if copper_series:
-        set_series(snap, "copper", copper_series, 100)
+        set_series(snap, "copper", copper_series, 252)
         if "copper" not in snap:
             snap["copper"] = {}
         snap["copper"]["currentPrice"] = copper_price if copper_price else copper_series[0][1]
     elif copper_price is not None:
-        prepend_price(snap, "copper", copper_price, now_ms, max_bars=100)
+        prepend_price(snap, "copper", copper_price, now_ms, max_bars=252)
         if "copper" not in snap:
             snap["copper"] = {}
         snap["copper"]["currentPrice"] = copper_price
@@ -555,7 +556,7 @@ def main():
             if twd_current is None or twd_current == 0:
                 twd_current = getattr(twd_info, "previous_close", None)
 
-            twd_hist = twd_ticker.history(period="6mo", interval="1d", auto_adjust=True)
+            twd_hist = twd_ticker.history(period="1y", interval="1d", auto_adjust=True)
             twd_series = []
             if not twd_hist.empty:
                 for dt_idx, row in twd_hist.iterrows():
@@ -564,16 +565,16 @@ def main():
                     if close > 0:
                         twd_series.append((ts_ms, close))
                 twd_series.sort(key=lambda x: x[0], reverse=True)
-                twd_series = twd_series[:100]
+                twd_series = twd_series[:252]
 
             if twd_series:
-                set_series(snap, "twd", twd_series, 100)
+                set_series(snap, "twd", twd_series, 252)
                 if "twd" not in snap:
                     snap["twd"] = {}
                 snap["twd"]["currentPrice"] = twd_current if twd_current else twd_series[0][1]
                 log(f"yfinance TWD=X OK: current={twd_current}, {len(snap['twd']['closes'])} bars stored")
             elif twd_current is not None:
-                prepend_price(snap, "twd", twd_current, now_ms, max_bars=100)
+                prepend_price(snap, "twd", twd_current, now_ms, max_bars=252)
                 if "twd" not in snap:
                     snap["twd"] = {}
                 snap["twd"]["currentPrice"] = twd_current
@@ -587,7 +588,6 @@ def main():
         log("WARN yfinance not installed, skipping USD/TWD")
 
     # ── 2g. TRUE Forward P/E via finviz.com (SPY, QQQ, SMH) ──────────────────
-    # NTM consensus forward PE, NOT trailing. Primary: finviz. Fallback: computed.
     log("Forward P/E (SPY, QQQ, SMH) via finviz.com [NTM analyst consensus] ...")
     fwd_pe_data = fetch_forward_pe()
     if fwd_pe_data:
@@ -605,9 +605,8 @@ def main():
         log("WARN Forward P/E: no data fetched, keeping existing snapshot values")
 
     # ── 2h. Market Breadth via yfinance (^SPXA200R) ───────────────────────────
-    # ^SPXA200R = % of S&P 500 stocks trading above their 200-day moving average
     log("yfinance ^SPXA200R (S&P 500 breadth: % stocks above 200-day MA) ...")
-    breadth_pct, breadth_series = fetch_breadth(max_bars=60)
+    breadth_pct, breadth_series = fetch_breadth(max_bars=252)
     if breadth_series:
         if "breadth" not in snap:
             snap["breadth"] = {}
@@ -642,25 +641,19 @@ def main():
             snap["hyOAS"]["history"] = (
                 [{"date": today_str, "value": hy_bp}]
                 + snap["hyOAS"].get("history", []))
-        snap["hyOAS"]["history"] = snap["hyOAS"]["history"][:MAX_CLOSES]  # 只保留最近 MAX_CLOSES 筆
+        snap["hyOAS"]["history"] = snap["hyOAS"]["history"][:MAX_CLOSES]
 
     log("Shiller CAPE (multpl.com) ...")
     cape_data = fetch_multpl_cape()
-    # Only overwrite current if we got a valid non-None value
-    # (prevents clobbering a good value with None on transient fetch failures)
     if cape_data.get("current") is not None:
         snap["shiller"]["current"] = cape_data["current"]
     else:
         log("WARN Shiller PE: fetch returned None, keeping existing current value")
 
-    # Fix: shiller history in snapshot is a LIST of {"date", "value"} dicts,
-    # but new_hist from fetch_multpl_cape() is a DICT of {YYYY-MM: float}.
-    # The old code called existing.update(new_hist) on the list → AttributeError crash.
-    new_hist = cape_data.get("history", {})  # dict: {"YYYY-MM": float, ...}
+    new_hist = cape_data.get("history", {})
     if new_hist:
         existing = snap["shiller"].get("history", [])
         if isinstance(existing, list):
-            # Collect existing YYYY-MM keys (first 7 chars of date field)
             existing_months = {e.get("date", "")[:7] for e in existing}
             new_entries = [
                 {"date": k, "value": v}
@@ -669,7 +662,6 @@ def main():
             ]
             snap["shiller"]["history"] = new_entries + existing
         else:
-            # Legacy dict format — merge directly
             existing.update(new_hist)
             snap["shiller"]["history"] = existing
         snap["shiller"]["history"] = snap["shiller"]["history"][:200]
@@ -688,7 +680,7 @@ def main():
         if new_entries:
             snap["fearGreed"]["history"] = (
                 new_entries + snap["fearGreed"].get("history", []))
-        snap["fearGreed"]["history"] = snap["fearGreed"]["history"][:MAX_CLOSES]  # 只保留最近 MAX_CLOSES 筆
+        snap["fearGreed"]["history"] = snap["fearGreed"]["history"][:MAX_CLOSES]
 
     # ── 5. Finalize & write ───────────────────────────────────────────────────
     snap["timestamp"] = now_ms
