@@ -5,7 +5,6 @@
     }
 
     // Sort timestamp+close pairs ascending and deduplicate.
-    // Fixes the "today prepended to ascending backfill" ordering bug.
     function sortChronologically(timestamps, closes) {
         if (!timestamps || timestamps.length < 2) return [normalizeTs(timestamps), closes];
         const ts = normalizeTs(timestamps);
@@ -16,19 +15,14 @@
         return [deduped.map(p => p[0]), deduped.map(p => p[1])];
     }
 
-    // Where consecutive timestamps are more than maxGapDays apart, insert a
-    // null placeholder so Chart.js renders a visible break instead of a
-    // misleading straight line across the gap.
-    // Accepts timestamps + any number of parallel data arrays.
-    // Returns [newTimestamps, ...newDataArrays].
+    // Insert null placeholders for gaps > 50 days so Chart.js renders breaks
     function insertNullsForGaps(timestamps, ...dataArrays) {
-        const maxGapMs = 50 * 24 * 3600 * 1000; // 50 days
+        const maxGapMs = 50 * 24 * 3600 * 1000;
         if (timestamps.length < 2) return [timestamps, ...dataArrays];
         const newTs = [timestamps[0]];
         const newArrs = dataArrays.map(arr => [arr[0]]);
         for (let i = 1; i < timestamps.length; i++) {
             if (timestamps[i] - timestamps[i - 1] > maxGapMs) {
-                // Place the null midway through the gap
                 newTs.push(Math.floor((timestamps[i - 1] + timestamps[i]) / 2));
                 newArrs.forEach(arr => arr.push(null));
             }
@@ -38,12 +32,19 @@
         return [newTs, ...newArrs];
     }
 
-    // Parse "YYYY-MM-DD" as LOCAL midnight instead of UTC midnight.
-    // new Date("2026-04-27") = UTC midnight = PST 5PM the day before → wrong axis.
+    // Parse "YYYY-MM-DD" as LOCAL midnight (not UTC) to avoid off-by-one day on PST
     function parseLocalDate(s) {
         const [y, m, d] = s.split('-').map(Number);
         return new Date(y, m - 1, d).getTime();
     }
+
+    // ─── X-axis window constants ────────────────────────────────────────────────
+    // Computed once at render time so all charts share the same "now"
+    const ONE_YEAR_MS  = 365.25 * 24 * 3600 * 1000;
+    const TEN_YEARS_MS = 10 * 365.25 * 24 * 3600 * 1000;
+    const _chartNow = Date.now();
+    const X_MIN_1Y  = _chartNow - ONE_YEAR_MS;   // default: 1 year
+    const X_MIN_10Y = _chartNow - TEN_YEARS_MS;  // Shiller PE: 10 years
 
     function renderCharts() {
         const d = gData;
@@ -59,20 +60,20 @@
             chartsDrawn.push(drawMulti('chart-spy', spyTs, [
                 { label:'SPY',   data: spyCloses, color:'#4fc3f7', width:1.5 },
                 { label:'MA200', data: ma200,     color:'#f44336', dash:[4,4], width:1 }
-            ]));
+            ], { xMin: X_MIN_1Y }));
         }
 
-        // Shiller PE
+        // Shiller PE — 10 years
         if (d.shiller && d.shiller.history && d.shiller.history.length > 0) {
             const pePairs = d.shiller.history
                 .map(h => [parseLocalDate(h.date), h.value])
                 .sort((a, b) => a[0] - b[0]);
             const [peTs, peVals] = insertNullsForGaps(pePairs.map(p => p[0]), pePairs.map(p => p[1]));
             chartsDrawn.push(drawMulti('chart-pe', peTs, [
-                { label:'Shiller PE', data: peVals,                             color:'#ff9800', width:1.5 },
+                { label:'Shiller PE', data: peVals,                               color:'#ff9800', width:1.5 },
                 { label:'+1σ',        data: new Array(peTs.length).fill(PE_WARN1), color:'#ff5722', dash:[5,5], width:1, spanGaps:true },
                 { label:'Mean',       data: new Array(peTs.length).fill(AI_MEAN),  color:'#4fc3f7', dash:[3,3], width:1, spanGaps:true },
-            ]));
+            ], { xMin: X_MIN_10Y }));
         }
 
         // Copper
@@ -83,7 +84,7 @@
             chartsDrawn.push(drawMulti('chart-copper', copperTs, [
                 { label:'Copper', data: copperCloses, color:'#cd7f32', width:1.5 },
                 { label:'MA3',    data: ma3,          color:'#ffeb3b', dash:[4,4], width:1 }
-            ]));
+            ], { xMin: X_MIN_1Y }));
         }
 
         // VIX
@@ -95,10 +96,10 @@
                 { label:'35',  data: new Array(vixTs.length).fill(35),   color:'#ff5722', dash:[5,5], width:1, spanGaps:true },
                 { label:'28',  data: new Array(vixTs.length).fill(28),   color:'#ff9800', dash:[3,3], width:1, spanGaps:true },
                 { label:'20',  data: new Array(vixTs.length).fill(20),   color:'#888',    dash:[3,3], width:1, spanGaps:true },
-            ]));
+            ], { xMin: X_MIN_1Y }));
         }
 
-        // HY OAS — normalize value from % to bp if needed (FRED gives %, chart expects bp)
+        // HY OAS
         if (d.hyOAS && d.hyOAS.history && d.hyOAS.history.length > 1) {
             const hyPairs = d.hyOAS.history
                 .map(h => [parseLocalDate(h.date), h.value < 10 ? h.value * 100 : h.value])
@@ -108,7 +109,7 @@
                 { label:'HY OAS', data: hyVals,                           color:'#ef5350', width:1.5 },
                 { label:'500bp',  data: new Array(hyTs.length).fill(500), color:'#ff9800', dash:[5,5], width:1, spanGaps:true },
                 { label:'300bp',  data: new Array(hyTs.length).fill(300), color:'#4caf50', dash:[3,3], width:1, spanGaps:true },
-            ]));
+            ], { xMin: X_MIN_1Y }));
         }
 
         // Market Breadth (% stocks above 200MA)
@@ -121,18 +122,18 @@
                 { label:'廣度%', data: brVals,                            color:'#26c6da', width:2 },
                 { label:'65%',   data: new Array(brTs.length).fill(65),  color:'#4caf50', dash:[5,5], width:1, spanGaps:true },
                 { label:'50%',   data: new Array(brTs.length).fill(50),  color:'#ff9800', dash:[3,3], width:1, spanGaps:true },
-            ], { timeUnit: 'day' }));
+            ], { xMin: X_MIN_1Y, timeUnit: 'day' }));
         }
 
         if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1) {
             const [qqqTsSorted, qqqClosesSorted] = sortChronologically(d.qqq.timestamps, d.qqq.closes);
             const [qqqTs, qqqCloses] = insertNullsForGaps(qqqTsSorted, qqqClosesSorted);
-            chartsDrawn.push(drawSingle('chart-qqq', qqqTs, qqqCloses, '#4fc3f7', 'QQQ'));
+            chartsDrawn.push(drawSingle('chart-qqq', qqqTs, qqqCloses, '#4fc3f7', 'QQQ', { xMin: X_MIN_1Y }));
         }
         if (d.smh && d.smh.closes && d.smh.closes.length > 1) {
             const [smhTsSorted, smhClosesSorted] = sortChronologically(d.smh.timestamps, d.smh.closes);
             const [smhTs, smhCloses] = insertNullsForGaps(smhTsSorted, smhClosesSorted);
-            chartsDrawn.push(drawSingle('chart-smh', smhTs, smhCloses, '#ce93d8', 'SMH'));
+            chartsDrawn.push(drawSingle('chart-smh', smhTs, smhCloses, '#ce93d8', 'SMH', { xMin: X_MIN_1Y }));
         }
 
         // DXY with MA20
@@ -143,7 +144,7 @@
             chartsDrawn.push(drawMulti('chart-dxy', dxyTs, [
                 { label:'DXY',  data: dxyCloses, color:'#81c784', width:1.5 },
                 { label:'MA20', data: ma20,      color:'#ffeb3b', dash:[4,4], width:1 }
-            ]));
+            ], { xMin: X_MIN_1Y }));
         }
 
         // TNX with MA20
@@ -156,11 +157,14 @@
                 { label:'MA20',      data: ma20,                               color:'#4fc3f7', dash:[4,4], width:1 },
                 { label:'4.5%',      data: new Array(tnxTs.length).fill(4.5), color:'#f44336', dash:[5,5], width:1, spanGaps:true },
                 { label:'3.5%',      data: new Array(tnxTs.length).fill(3.5), color:'#4caf50', dash:[5,5], width:1, spanGaps:true },
-            ]));
+            ], { xMin: X_MIN_1Y }));
         }
     }
 
-    function drawSingle(id, timestamps, closes, color, label) {
+    function drawSingle(id, timestamps, closes, color, label, opts) {
+        const xMin = opts && opts.xMin;
+        const xScale = { type:'time', ticks:{maxTicksLimit:6}, grid:{color:'#1a2a3a'} };
+        if (xMin) xScale.min = xMin;
         return new Chart(document.getElementById(id), {
             type:'line',
             data:{ labels: timestamps.map(t=>new Date(t)), datasets:[{
@@ -168,7 +172,7 @@
                 borderWidth:1.5, pointRadius:0, fill:false, spanGaps:false
             }] },
             options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
-                scales:{ x:{ type:'time', ticks:{maxTicksLimit:5}, grid:{color:'#1a2a3a'} }, y:{ grid:{color:'#1a2a3a'} } } }
+                scales:{ x: xScale, y:{ grid:{color:'#1a2a3a'} } } }
         });
     }
 
@@ -183,13 +187,14 @@
             fill: false,
             spanGaps: d.spanGaps !== undefined ? d.spanGaps : false
         }));
-        const xScaleOpts = { type:'time', ticks:{maxTicksLimit:5}, grid:{color:'#1a2a3a'} };
-        if (opts && opts.timeUnit) xScaleOpts.time = { unit: opts.timeUnit };
+        const xScale = { type:'time', ticks:{maxTicksLimit:6}, grid:{color:'#1a2a3a'} };
+        if (opts && opts.xMin)     xScale.min = opts.xMin;
+        if (opts && opts.timeUnit) xScale.time = { unit: opts.timeUnit };
         return new Chart(document.getElementById(id), {
             type:'line',
             data:{ labels: timestamps.map(t=>new Date(t)), datasets: ds },
             options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
-                scales:{ x: xScaleOpts, y:{ grid:{color:'#1a2a3a'} } } }
+                scales:{ x: xScale, y:{ grid:{color:'#1a2a3a'} } } }
         });
     }
 
@@ -205,20 +210,14 @@
     //
     // 抓取策略（依優先順序）：
     //   1. 同源 GitHub Pages：./market-data-snapshot.json（cache: no-store）
-    //      → Pages 每次重新部署時 CDN 快取被清除，永遠是最新版本
-    //   2. raw.githubusercontent.com（備援，帶唯一 timestamp 繞過 CDN 快取）
-    //
-    // 為何不用 /api/data：GitHub Pages 是靜態服務，沒有 API 端點，嘗試必失敗。
+    //   2. raw.githubusercontent.com（備援）
 
-    // ─── Init ───────────────────────────────────────────────────────────
     async function init() {
         const bar = document.getElementById('status-bar');
         try {
             let dataSource = 'snapshot';
             let res;
 
-            // 優先從同源 GitHub Pages 抓快照
-            // cache: 'no-store' 跳過瀏覽器快取；Pages CDN 快取在每次部署時被清除
             const SNAPSHOT_PAGES = './market-data-snapshot.json';
             const SNAPSHOT_RAW   = 'https://raw.githubusercontent.com/Amoleskyhigh/felix-market-dashboard-v2/main/market-data-snapshot.json';
 
@@ -235,7 +234,6 @@
                 if (!res.ok) throw new Error('pages fetch failed: ' + res.status);
                 gData = await parseSnapshot(await res.text());
             } catch (pagesErr) {
-                // 備援：raw.githubusercontent.com（帶唯一 timestamp 強制繞過 CDN）
                 console.warn('GitHub Pages fetch failed, falling back to raw:', pagesErr.message);
                 dataSource = 'snapshot (raw fallback)';
                 res = await fetch(SNAPSHOT_RAW + '?t=' + Date.now());
@@ -243,8 +241,6 @@
                 gData = await parseSnapshot(await res.text());
             }
 
-            // QTUM was not present in older snapshots. Keep the requested
-            // comparison available until the next snapshot writer includes it.
             if (!gData.qtum) {
                 gData.qtum = {
                     currentPrice: 144.72,
@@ -273,7 +269,6 @@
             renderPanic(panic);
             renderQuadrant(sc);
 
-            // Charts are non-critical — isolated try-catch so chart bugs never block KPI display
             try {
                 renderCharts();
             } catch (chartErr) {
