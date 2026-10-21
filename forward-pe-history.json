@@ -2520,7 +2520,7 @@
     {
       "date": "2026-10-20",
       "asOf": "2026-10-20",
-      "retrievedAt": "2026-10-21T16:08:54.866Z",
+      "retrievedAt": "2026-10-21T23:59:52.883Z",
       "etfs": {
         "SPY": {
           "value": 18.7,
@@ -2535,7 +2535,7 @@
           "sourceUrl": "https://www.trefis.com/data/companies/SPY",
           "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
           "date": "2026-10-20",
-          "retrievedAt": "2026-10-21T16:08:54.866Z"
+          "retrievedAt": "2026-10-21T23:59:52.883Z"
         },
         "QQQ": {
           "value": 25.22,
@@ -2550,7 +2550,7 @@
           "sourceUrl": "https://www.trefis.com/data/companies/QQQ",
           "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
           "date": "2026-10-20",
-          "retrievedAt": "2026-10-21T16:08:54.866Z"
+          "retrievedAt": "2026-10-21T23:59:52.883Z"
         },
         "SMH": {
           "value": 22.19,
@@ -2565,7 +2565,7 @@
           "sourceUrl": "https://www.trefis.com/data/companies/SMH",
           "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
           "date": "2026-10-20",
-          "retrievedAt": "2026-10-21T16:08:54.866Z"
+          "retrievedAt": "2026-10-21T23:59:52.883Z"
         },
         "IGV": {
           "value": 25.09,
@@ -2580,12 +2580,12 @@
           "sourceUrl": "https://www.trefis.com/data/companies/IGV",
           "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
           "date": "2026-10-20",
-          "retrievedAt": "2026-10-21T16:08:54.866Z"
+          "retrievedAt": "2026-10-21T23:59:52.883Z"
         }
       }
     }
   ],
   "startedAt": "2026-08-25",
-  "lastUpdatedAt": "2026-10-21T16:08:54.866Z",
+  "lastUpdatedAt": "2026-10-21T23:59:52.883Z",
   "maxHoldingsPerETF": 200
 }
