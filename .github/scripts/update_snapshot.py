@@ -8,7 +8,8 @@ Data sources:
   - Alpha Vantage GLOBAL_QUOTE : SPY, QQQ, SMH, IGV, SPX, IXIC
   - Alpha Vantage TIME_SERIES_DAILY: SPY(250), QQQ/SMH/IGV(100 each)
   - yfinance                    : ^VIX, ^TNX, HG=F (Copper), DX-Y.NYB (DXY),
-                                  ^SPXA200R (Breadth), Forward P/E
+                                  Forward P/E
+  - public breadth pages        : ChartRow, TradingTwoHundred, StockCharts
   - FRED CSV                    : BAMLH0A0HYM2 (HY OAS)
   - multpl.com                  : Shiller CAPE (current + monthly history)
   - CNN Fear & Greed            : score, rating, history
@@ -170,13 +171,76 @@ def yfinance_tnx(max_bars=252):
     return yfinance_ticker("^TNX", period="2y", max_bars=max_bars, label="TNX ^TNX")
 
 
-def fetch_breadth(max_bars=60):
-    """
-    Fetch % of S&P 500 stocks above their 200-day moving average via yfinance (^SPXA200R).
-    ^SPXA200R is the NYSE/CBOE breadth index published on Yahoo Finance.
-    Returns (pct: float|None, series: [(ts_ms, pct), ...] newest-first).
-    """
-    return yfinance_ticker("^SPXA200R", period="3mo", max_bars=max_bars, label="breadth ^SPXA200R")
+def _breadth_date(raw):
+    """Extract a publication date from a public breadth page."""
+    text = raw.replace("&amp;", "&")
+    patterns = [
+        r"(?:as of market close|Last updated:|on)\s*,?\s*([A-Z][a-z]+ \d{1,2}, \d{4})",
+        r"(\d{4}-\d{2}-\d{2})",
+    ]
+    for pattern in patterns:
+        import re
+        m = re.search(pattern, text, re.I)
+        if not m:
+            continue
+        for fmt in ("%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
+            try:
+                return datetime.datetime.strptime(m.group(1), fmt).date()
+            except ValueError:
+                pass
+    return None
+
+
+def _valid_breadth(value, as_of):
+    today = datetime.date.today()
+    age = (today - as_of).days if as_of else 999
+    return value is not None and 0 <= value <= 100 and as_of is not None and 0 <= age <= 3
+
+
+def _breadth_page(url, pattern):
+    import re
+    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
+    r.raise_for_status()
+    raw = r.text
+    text = re.sub(r"<[^>]+>", " ", raw).replace("&amp;", "&")
+    m = re.search(pattern, text, re.I)
+    value = float(m.group(1)) if m else None
+    return value, _breadth_date(raw)
+
+
+def fetch_breadth():
+    """Fetch breadth with the same validated fallback chain as the daily report."""
+    sources = [
+        ("ChartRow:S&P500 market breadth", "https://chartrow.com/sp500/market-breadth",
+         r"(\d+(?:\.\d+)?)%\s*of\s*eligible\s*members"),
+        ("TradingTwoHundred:S&P500 breadth", "https://tradingtwohundred.com/",
+         r"(\d+(?:\.\d+)?)%\s+of\s+the\s+S&P\s*500\s+is\s+above\s+its\s+200-day\s+average"),
+    ]
+    for source, url, pattern in sources:
+        try:
+            value, as_of = _breadth_page(url, pattern)
+            if _valid_breadth(value, as_of):
+                return value, [(date_to_ms(as_of.isoformat()), value)], source, as_of.isoformat()
+            log(f"WARN breadth {source}: invalid/stale value={value}, asOf={as_of}")
+        except Exception as e:
+            log(f"WARN breadth {source}: {e}")
+
+    # Last fallback: StockCharts' unstable JSON endpoint.
+    try:
+        r = requests.get(
+            "https://stockcharts.com/quotebrain/quotes?s=%24SPXA200R&f=json",
+            headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
+        r.raise_for_status()
+        quote = (r.json() or [])[0]
+        value = float(quote.get("close"))
+        as_of = str(quote.get("time", {}).get("time", ""))[:10]
+        as_date = datetime.date.fromisoformat(as_of)
+        if _valid_breadth(value, as_date):
+            return value, [(date_to_ms(as_of), value)], "StockCharts:$SPXA200R", as_of
+        log(f"WARN breadth StockCharts: invalid/stale value={value}, asOf={as_of}")
+    except Exception as e:
+        log(f"WARN breadth StockCharts: {e}")
+    return None, [], None, None
 
 
 def fetch_forward_pe():
@@ -682,34 +746,28 @@ def main():
     else:
         log("WARN Forward P/E: no data fetched, keeping existing snapshot values")
 
-    # ── 2h. Market Breadth via yfinance (^SPXA200R) ───────────────────────────
-    # ^SPXA200R = % of S&P 500 stocks trading above their 200-day moving average
-    log("yfinance ^SPXA200R (S&P 500 breadth: % stocks above 200-day MA) ...")
-    breadth_pct, breadth_series = fetch_breadth(max_bars=60)
+    # ── 2h. Market Breadth: ChartRow → TradingTwoHundred → StockCharts ────────
+    log("public breadth sources (ChartRow → TradingTwoHundred → StockCharts) ...")
+    breadth_pct, breadth_series, breadth_source, breadth_as_of = fetch_breadth()
     if breadth_series:
         if "breadth" not in snap:
             snap["breadth"] = {}
         breadth = snap["breadth"]
         breadth["pct"] = breadth_pct if breadth_pct is not None else breadth_series[0][1]
-        breadth["history"] = [
-            {
-                "date": datetime.datetime.utcfromtimestamp(ts / 1000).strftime("%Y-%m-%d"),
-                "value": round(c, 2),
-            }
-            for ts, c in breadth_series
+        fresh_rows = [
+            {"date": breadth_as_of, "value": round(breadth_pct, 2)}
         ]
+        old_history = [h for h in breadth.get("history", []) if h.get("date") != breadth_as_of]
+        breadth["history"] = fresh_rows + old_history
         breadth["history"].sort(key=lambda item: item["date"], reverse=True)
         breadth["asOf"] = breadth["history"][0]["date"]
+        breadth["source"] = breadth_source
         breadth["status"] = "available"
         breadth.pop("error", None)
-        log(f"breadth OK: pct={breadth['pct']:.1f}%, asOf={breadth['asOf']}, {len(breadth_series)} bars stored")
-    elif breadth_pct is not None:
-        # A current percentage without a dated history cannot safely drive the
-        # chart or allocation score. Keep this explicitly unavailable.
-        mark_unavailable(snap, "breadth", "breadth source returned no dated history")
-        log(f"WARN breadth: price-only value {breadth_pct:.1f}% discarded without dated history")
+        log(f"breadth OK: pct={breadth['pct']:.1f}%, asOf={breadth['asOf']}, source={breadth_source}")
     else:
-        log("WARN breadth: ^SPXA200R no data from yfinance, keeping existing snapshot values")
+        mark_unavailable(snap, "breadth", "all public breadth sources unavailable or stale")
+        log("WARN breadth: all public sources unavailable; marked N/A")
 
     # ── 3. FRED ───────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) ...")
