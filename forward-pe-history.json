@@ -2985,9 +2985,76 @@
           "retrievedAt": "2026-10-30T17:18:02.937Z"
         }
       }
+    },
+    {
+      "date": "2026-10-31",
+      "asOf": "2026-10-31",
+      "retrievedAt": "2026-11-02T20:56:06.293Z",
+      "etfs": {
+        "SPY": {
+          "value": 19.28,
+          "status": "partial",
+          "coverage": 0.98,
+          "coveredHoldings": 480,
+          "totalHoldings": 497,
+          "asOf": "2026-10-31",
+          "forecastPeriod": "FY1/FY2 consensus blended to 11/30/27",
+          "calculation": "ETF forward earnings yield = weighted average of each holding's (forward net income ÷ market cap) = 5.2%",
+          "result": "Forward P/E = 1 ÷ 5.2% = 19.28x",
+          "sourceUrl": "https://www.trefis.com/data/companies/SPY",
+          "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
+          "date": "2026-10-31",
+          "retrievedAt": "2026-11-02T20:56:06.293Z"
+        },
+        "QQQ": {
+          "value": 23.22,
+          "status": "partial",
+          "coverage": 0.94,
+          "coveredHoldings": 90,
+          "totalHoldings": 93,
+          "asOf": "2026-10-31",
+          "forecastPeriod": "FY1/FY2 consensus blended to 11/30/27",
+          "calculation": "ETF forward earnings yield = weighted average of each holding's (forward net income ÷ market cap) = 4.3%",
+          "result": "Forward P/E = 1 ÷ 4.3% = 23.22x",
+          "sourceUrl": "https://www.trefis.com/data/companies/QQQ",
+          "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
+          "date": "2026-10-31",
+          "retrievedAt": "2026-11-02T20:56:06.293Z"
+        },
+        "SMH": {
+          "value": 19.82,
+          "status": "partial",
+          "coverage": 0.94,
+          "coveredHoldings": 19,
+          "totalHoldings": 20,
+          "asOf": "2026-10-31",
+          "forecastPeriod": "FY1/FY2 consensus blended to 11/30/27",
+          "calculation": "ETF forward earnings yield = weighted average of each holding's (forward net income ÷ market cap) = 5.0%",
+          "result": "Forward P/E = 1 ÷ 5.0% = 19.82x",
+          "sourceUrl": "https://www.trefis.com/data/companies/SMH",
+          "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
+          "date": "2026-10-31",
+          "retrievedAt": "2026-11-02T20:56:06.293Z"
+        },
+        "IGV": {
+          "value": 23.85,
+          "status": "available",
+          "coverage": 1,
+          "coveredHoldings": 99,
+          "totalHoldings": 102,
+          "asOf": "2026-10-31",
+          "forecastPeriod": "FY1/FY2 consensus blended to 11/30/27",
+          "calculation": "ETF forward earnings yield = weighted average of each holding's (forward net income ÷ market cap) = 4.2%",
+          "result": "Forward P/E = 1 ÷ 4.2% = 23.85x",
+          "sourceUrl": "https://www.trefis.com/data/companies/IGV",
+          "source": "Trefis ETF aggregate Forward P/E (analyst consensus)",
+          "date": "2026-10-31",
+          "retrievedAt": "2026-11-02T20:56:06.293Z"
+        }
+      }
     }
   ],
   "startedAt": "2026-08-25",
-  "lastUpdatedAt": "2026-10-30T17:18:02.937Z",
+  "lastUpdatedAt": "2026-11-02T20:56:06.293Z",
   "maxHoldingsPerETF": 200
 }
