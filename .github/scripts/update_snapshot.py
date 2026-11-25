@@ -32,7 +32,7 @@ except ImportError:
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-AV_KEY   = os.environ.get("AV_KEY", "G82DB8ZUK7E0FBKV")
+AV_KEY   = os.environ.get("AV_KEY") or os.environ.get("ALPHA_VANTAGE_API_KEY", "")
 SNAPSHOT = "market-data-snapshot.json"
 AV_BASE  = "https://www.alphavantage.co/query"
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv"
@@ -45,8 +45,9 @@ RATE_SLEEP = 15
 # enough daily context.  Individual providers may still request fewer bars.
 MAX_CLOSES = 252
 PRICE_FRESH_DAYS = 3
+HY_OAS_FRESH_DAYS = 7
 REQUIRED_PRICE_SERIES = [
-    "spy", "qqq", "smh", "igv", "spx", "ixic", "sox", "boxx", "qld",
+    "spy", "qqq", "smh", "igv", "spx", "ixic", "sox", "boxx", "qld", "qtum",
     "vix", "tnx", "copper", "dxy", "twd",
 ]
 
@@ -495,6 +496,125 @@ def mark_unavailable(snap, key, error):
     asset.pop("asOf", None)
 
 
+def normalize_dated_history(rows, limit=MAX_CLOSES):
+    """Deduplicate dated observations and return newest-first rows."""
+    by_date = {}
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        date = row.get("date")
+        if not isinstance(date, str) or not date:
+            continue
+        by_date.setdefault(date, row)
+    return [by_date[d] for d in sorted(by_date, reverse=True)[:limit]]
+
+
+def hy_oas_freshness(as_of, today_str, max_age=HY_OAS_FRESH_DAYS):
+    """Return explicit freshness metadata for the FRED HY OAS observation."""
+    result = {"asOf": as_of, "ageDays": None, "maxAgeDays": max_age, "isFresh": False}
+    if not isinstance(as_of, str):
+        return result
+    try:
+        age = (datetime.date.fromisoformat(today_str) - datetime.date.fromisoformat(as_of)).days
+    except (TypeError, ValueError):
+        return result
+    result["ageDays"] = age
+    result["isFresh"] = 0 <= age <= max_age
+    return result
+
+
+def merge_hy_oas_history(fetched_rows, cached_rows):
+    """Merge FRED and cached HY OAS rows, preferring the newest date.
+
+    Fetched rows come first so a same-day refresh replaces the cached value,
+    while date ordering ensures a late/older provider response cannot replace
+    a newer cached observation.
+    """
+    fetched = [
+        {"date": row["date"], "value": int(round(row["value"] * 100))}
+        for row in (fetched_rows or [])
+        if isinstance(row, dict)
+        and isinstance(row.get("date"), str)
+        and isinstance(row.get("value"), (int, float))
+    ]
+    cached = [
+        {"date": row["date"], "value": row["value"]}
+        for row in (cached_rows or [])
+        if isinstance(row, dict)
+        and isinstance(row.get("date"), str)
+        and isinstance(row.get("value"), (int, float))
+    ]
+    return normalize_dated_history(fetched + cached)
+
+
+def validate_hy_oas(snap, today_str):
+    """Validate HY OAS data freshness separately from fetch health."""
+    hy = snap.get("hyOAS", {})
+    status = hy.get("status")
+    fetch_status = hy.get("fetchStatus")
+    freshness = hy.get("freshness")
+    if status not in {"available", "stale", "unavailable"}:
+        raise RuntimeError(f"HY OAS status missing or invalid: {status!r}")
+    if fetch_status not in {"ok", "failed"}:
+        raise RuntimeError(f"HY OAS fetchStatus missing or invalid: {fetch_status!r}")
+    if not isinstance(freshness, dict) or freshness.get("maxAgeDays") != HY_OAS_FRESH_DAYS:
+        raise RuntimeError("HY OAS freshness metadata missing or invalid")
+    if status == "unavailable":
+        if hy.get("asOf") is not None or freshness.get("isFresh") or fetch_status != "failed":
+            raise RuntimeError("HY OAS unavailable state contains current-looking metadata")
+        return
+    as_of = hy.get("asOf")
+    if not isinstance(as_of, str) or freshness.get("asOf") != as_of:
+        raise RuntimeError("HY OAS asOf metadata missing or inconsistent")
+    expected = hy_oas_freshness(as_of, today_str)
+    if freshness != expected:
+        raise RuntimeError("HY OAS freshness metadata is inconsistent with asOf")
+    if status == "available" and not freshness["isFresh"]:
+        raise RuntimeError("HY OAS marked available despite stale asOf")
+    if status == "stale" and freshness["isFresh"]:
+        raise RuntimeError("HY OAS marked stale despite fresh asOf")
+    if fetch_status == "ok" and hy.get("error"):
+        raise RuntimeError("HY OAS successful fetch contains an error")
+    if fetch_status == "failed" and not hy.get("error"):
+        raise RuntimeError("HY OAS failed fetch is missing an error")
+
+
+def normalize_hy_oas_metadata(snap, today_str):
+    """Backfill and normalize HY OAS metadata before validation/write.
+
+    Older snapshots only had ``current`` and ``history``.  A failed refresh
+    must still produce an explicit, internally consistent state instead of
+    allowing the legacy shape to reach the dashboard.
+    """
+    hy = snap.setdefault("hyOAS", {})
+    hy["history"] = normalize_dated_history(hy.get("history", []))
+    if not hy["history"]:
+        hy["status"] = "unavailable"
+        hy["fetchStatus"] = "failed"
+        hy["asOf"] = None
+        hy["freshness"] = hy_oas_freshness(None, today_str)
+        hy.pop("current", None)
+        hy.setdefault("error", "HY OAS has no usable observation")
+        return
+
+    as_of = hy["history"][0]["date"]
+    freshness = hy_oas_freshness(as_of, today_str)
+    # The history has already been merged with newest-date precedence.  Never
+    # preserve a prior status here: doing so can leave an internally
+    # contradictory state such as status=stale with freshness.isFresh=true
+    # when a newer cached observation supersedes an older FRED response.
+    hy["current"] = hy["history"][0]["value"]
+    hy["asOf"] = as_of
+    hy["freshness"] = freshness
+    hy["status"] = "available" if freshness["isFresh"] else "stale"
+    if hy.get("fetchStatus") not in {"ok", "failed"}:
+        hy["fetchStatus"] = "failed"
+    if hy["fetchStatus"] == "ok":
+        hy.pop("error", None)
+    else:
+        hy.setdefault("error", "HY OAS refresh failed; retaining last known value")
+
+
 def validate_freshness(snap, required_keys, today_str):
     """Fail the workflow when required market series are stale or malformed."""
     failures = []
@@ -577,17 +697,21 @@ def main():
         ("SPY", "spy", 250), ("QQQ", "qqq", 100), ("SMH", "smh", 100),
         ("IGV", "igv", 100), ("^GSPC", "spx", 100), ("^IXIC", "ixic", 100),
         ("^SOX", "sox", 100), ("BOXX", "boxx", 100), ("QLD", "qld", 100),
+        ("QTUM", "qtum", 100),
     ]
     for yf_symbol, key, max_bars in YF_SERIES:
         price, series = yfinance_ticker(yf_symbol, period="2y", max_bars=max_bars, label=key)
         if series:
             set_series(snap, key, series, max_bars)
             snap[key]["currentPrice"] = price if price is not None else series[0][1]
+            snap.setdefault("sourceStatus", {})[key] = "ok"
         elif price is not None:
             prepend_price(snap, key, price, now_ms, max_bars)
             snap[key]["currentPrice"] = price
+            snap.setdefault("sourceStatus", {})[key] = "ok"
         else:
             mark_unavailable(snap, key, f"no fresh data from yfinance ({yf_symbol})")
+            snap.setdefault("sourceStatus", {})[key] = "failed"
 
     # ── 2. TIME_SERIES_DAILY (AV) ─────────────────────────────────────────────
     TS_SYMBOLS = [
@@ -772,18 +896,54 @@ def main():
     # ── 3. FRED ───────────────────────────────────────────────────────────────
     log("FRED BAMLH0A0HYM2 (HY OAS) ...")
     hy_rows = fred_series("BAMLH0A0HYM2")
+    snap.setdefault("sourceStatus", {})
     if hy_rows:
-        latest_hy = hy_rows[-1]
-        hy_bp = int(round(latest_hy["value"] * 100))  # % → basis points
-        if "hyOAS" not in snap:
-            snap["hyOAS"] = {"current": hy_bp, "history": []}
-        snap["hyOAS"]["current"] = hy_bp
-        existing = {h["date"] for h in snap["hyOAS"].get("history", [])}
-        if today_str not in existing:
-            snap["hyOAS"]["history"] = (
-                [{"date": today_str, "value": hy_bp}]
-                + snap["hyOAS"].get("history", []))
-        snap["hyOAS"]["history"] = snap["hyOAS"]["history"][:MAX_CLOSES]  # 只保留最近 MAX_CLOSES 筆
+        # FRED normally returns chronological rows, but a successful request
+        # can still lag behind a newer cached observation (provider lag or a
+        # partial response).  Merge both histories and always select the
+        # newest dated observation so an older fetch can never overwrite a
+        # newer cache.
+        hy = snap.setdefault("hyOAS", {"history": []})
+        hy["history"] = merge_hy_oas_history(hy_rows, hy.get("history", []))
+        latest_hy = hy["history"][0]
+        hy["current"] = latest_hy["value"]
+        latest_hy_date = latest_hy["date"]
+        hy["asOf"] = latest_hy_date
+        hy["freshness"] = hy_oas_freshness(latest_hy_date, today_str)
+        hy_age = snap["hyOAS"]["freshness"]["ageDays"]
+        if hy["freshness"]["isFresh"]:
+            hy["status"] = "available"
+            hy["fetchStatus"] = "ok"
+            hy.pop("error", None)
+            snap["sourceStatus"]["hyOAS"] = "ok"
+        else:
+            hy["status"] = "stale"
+            hy["fetchStatus"] = "ok"
+            # The fetch succeeded; staleness describes the observation date,
+            # not a transport/provider error.  Keep the metadata consistent
+            # with validate_hy_oas(): fetchStatus=ok must not carry error.
+            hy.pop("error", None)
+            snap["sourceStatus"]["hyOAS"] = "stale"
+            log(f"WARN HY OAS: latest observation is {hy_age} days old")
+    else:
+        hy = snap.setdefault("hyOAS", {"history": []})
+        hy["history"] = normalize_dated_history(hy.get("history", []))
+        if hy.get("history"):
+            hy["asOf"] = hy["history"][0]["date"]
+            hy["freshness"] = hy_oas_freshness(hy["asOf"], today_str)
+            hy["status"] = "available" if hy["freshness"]["isFresh"] else "stale"
+            hy["fetchStatus"] = "failed"
+            hy["error"] = "FRED BAMLH0A0HYM2 unavailable; retaining last known value"
+            snap["sourceStatus"]["hyOAS"] = "cached" if hy["freshness"]["isFresh"] else "stale"
+            log("WARN HY OAS: source unavailable; retaining last value with explicit fetch failure")
+        else:
+            hy["status"] = "unavailable"
+            hy["fetchStatus"] = "failed"
+            hy["asOf"] = None
+            hy["freshness"] = hy_oas_freshness(None, today_str)
+            hy["error"] = "FRED BAMLH0A0HYM2 unavailable and no cached value"
+            hy.pop("current", None)
+            snap["sourceStatus"]["hyOAS"] = "failed"
 
     log("Shiller CAPE (multpl.com) ...")
     cape_data = fetch_multpl_cape()
@@ -813,12 +973,11 @@ def main():
         snap["fearGreed"]["score"] = score
         if rating:
             snap["fearGreed"]["rating"] = rating
-        existing = {h["date"] for h in snap["fearGreed"].get("history", [])}
-        new_entries = [h for h in fng_hist if h["date"] not in existing]
-        if new_entries:
-            snap["fearGreed"]["history"] = (
-                new_entries + snap["fearGreed"].get("history", []))
-        snap["fearGreed"]["history"] = snap["fearGreed"]["history"][:MAX_CLOSES]  # 只保留最近 MAX_CLOSES 筆
+        snap["fearGreed"]["history"] = normalize_dated_history(
+            fng_hist + snap["fearGreed"].get("history", []))
+        snap["sourceStatus"]["fearGreed"] = "ok"
+    else:
+        snap.setdefault("sourceStatus", {})["fearGreed"] = "stale" if snap.get("fearGreed", {}).get("history") else "failed"
 
     # Market breadth is intentionally fail-closed.  A stale breadth number is
     # worse than N/A because it changes the allocation score.
@@ -826,7 +985,9 @@ def main():
     if not breadth.get("history") or breadth.get("asOf", "") < (datetime.date.today() - datetime.timedelta(days=7)).isoformat():
         mark_unavailable(snap, "breadth", "breadth source is stale or unavailable")
 
+    normalize_hy_oas_metadata(snap, today_str)
     validate_freshness(snap, REQUIRED_PRICE_SERIES, today_str)
+    validate_hy_oas(snap, today_str)
 
     # ── 5. Finalize & write ───────────────────────────────────────────────────
     snap["timestamp"] = now_ms

@@ -149,6 +149,16 @@ function writeJSONAtomic(filename, data) {
   fs.renameSync(temp, filename);
 }
 
+function dedupeSnapshots(snapshots) {
+  // Clean legacy duplicates while preserving the latest observation for each
+  // market date.  The newly fetched point is appended last by the caller.
+  const byDate = new Map();
+  for (const point of snapshots || []) {
+    if (point && typeof point.date === 'string' && point.date) byDate.set(point.date, point);
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 async function main() {
   const retrievedDate = currentNYSEDate();
   const retrievedAt = new Date().toISOString();
@@ -176,10 +186,10 @@ async function main() {
   history.startedAt = history.startedAt || date;
   history.lastUpdatedAt = retrievedAt;
   history.valuationBands = VALUATION_BANDS;
-  history.snapshots = history.snapshots.filter(point => point && point.date !== date);
-  history.snapshots.push({ date, asOf: date, retrievedAt, etfs });
-  history.snapshots.sort((a, b) => a.date.localeCompare(b.date));
-  history.snapshots = history.snapshots.slice(-MAX_HISTORY_POINTS);
+  history.snapshots = dedupeSnapshots([
+    ...history.snapshots.filter(point => point && point.date !== date),
+    { date, asOf: date, retrievedAt, etfs }
+  ]).slice(-MAX_HISTORY_POINTS);
   for (const output of OUTPUTS) writeJSONAtomic(output, history);
   console.log(`Trefis forward P/E snapshot saved for ${date}: ${ETF_SYMBOLS.map(s => `${s}=${etfs[s].value ?? 'N/A'} (${Math.round((etfs[s].coverage || 0) * 100)}% weight)`).join(', ')}`);
   if (ETF_SYMBOLS.some(s => etfs[s].status === 'unavailable')) process.exitCode = 1;
@@ -187,4 +197,4 @@ async function main() {
 
 if (require.main === module) main().catch(error => { console.error(`ERROR: Trefis forward P/E snapshot failed: ${error.message}`); process.exitCode = 1; });
 
-module.exports = { parseTrefisForwardPE, currentNYSEDate, makeUnavailablePoint, decodeHTML };
+module.exports = { parseTrefisForwardPE, currentNYSEDate, makeUnavailablePoint, decodeHTML, dedupeSnapshots };
