@@ -31,6 +31,8 @@ jobs:
         env:
           ALPHA_VANTAGE_API_KEY: ${{ secrets.AV_KEY }}
         run: node .github/scripts/update-forward-pe-history.js
+      - name: Validate published JSON schema and consistency
+        run: python tests/test_snapshot_schema.py
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"

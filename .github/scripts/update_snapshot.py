@@ -23,6 +23,7 @@ import time
 import datetime
 import traceback
 import requests
+from zoneinfo import ZoneInfo
 
 try:
     import yfinance as yf
@@ -46,6 +47,8 @@ RATE_SLEEP = 15
 MAX_CLOSES = 252
 PRICE_FRESH_DAYS = 3
 HY_OAS_FRESH_DAYS = 7
+SHILLER_FRESH_DAYS = 45
+REPORT_TZ = ZoneInfo("America/Los_Angeles")
 REQUIRED_PRICE_SERIES = [
     "spy", "qqq", "smh", "igv", "spx", "ixic", "sox", "boxx", "qld", "qtum",
     "vix", "tnx", "copper", "dxy", "twd",
@@ -63,6 +66,11 @@ def date_to_ms(date_str):
     dt = datetime.datetime.strptime(date_str, "%Y-%m-%d").replace(
         tzinfo=datetime.timezone.utc)
     return int(dt.timestamp() * 1000)
+
+
+def report_date():
+    """Return the report date in Felix's configured Pacific timezone."""
+    return datetime.datetime.now(REPORT_TZ).date()
 
 
 # ── Alpha Vantage ──────────────────────────────────────────────────────────────
@@ -193,7 +201,7 @@ def _breadth_date(raw):
 
 
 def _valid_breadth(value, as_of):
-    today = datetime.date.today()
+    today = report_date()
     age = (today - as_of).days if as_of else 999
     return value is not None and 0 <= value <= 100 and as_of is not None and 0 <= age <= 3
 
@@ -356,62 +364,56 @@ def fred_series(series_id):
 
 
 def fetch_multpl_cape():
-    """Fetch Shiller CAPE (current + monthly history) from multpl.com."""
-    import re
-    result = {"current": None, "history": {}}
-    try:
-        # --- Current value ---
-        r = requests.get(
-            "https://www.multpl.com/shiller-pe",
-            timeout=20,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
-        )
-        r.raise_for_status()
-        # Primary regex
-        match = re.search(r"""id=["'](current|value)["'].*?</b>\s*([\d.]+)""", r.text, re.DOTALL)
-        if match:
-            result["current"] = float(match.group(2))
-            log(f"multpl.com CAPE current OK (primary): {result['current']}")
-        else:
-            # Fallback: broader search for current value div
-            match2 = re.search(r'id=["\']current["\'][^>]*>.*?([0-9]+\.[0-9]+)', r.text, re.DOTALL)
-            if match2:
-                result["current"] = float(match2.group(1))
-                log(f"multpl.com CAPE current OK (fallback): {result['current']}")
-            else:
-                log("WARN multpl.com CAPE: could not parse current value with any pattern")
-    except Exception as e:
-        log(f"WARN multpl.com CAPE current: {e}")
+    """Fetch Shiller CAPE from multpl.com with a readable-table fallback.
 
-    try:
-        # --- Monthly history ---
-        r2 = requests.get(
-            "https://www.multpl.com/shiller-pe/table/by-month",
-            timeout=20,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
-        )
-        r2.raise_for_status()
-        # Parse table rows: <td>Jan 1, 2026</td><td>42.08</td>
-        rows = re.findall(
-            r"<td[^>]*>\s*(\w+ \d+,\s*\d{4})\s*</td>\s*<td[^>]*>\s*([\d.]+)\s*</td>",
-            r2.text
-        )
-        from datetime import datetime
-        hist = {}
-        for date_str, val_str in rows:
-            try:
-                dt = datetime.strptime(date_str.strip(), "%b %d, %Y")
-                key = dt.strftime("%Y-%m")
-                hist[key] = float(val_str)
-            except Exception:
+    multpl's chart HTML is intermittently blocked/changed, while its monthly
+    table remains machine-readable through the public Jina Reader mirror.  The
+    table's newest observation is the authoritative current value and date.
+    CAPE is a monthly observation; the dashboard may poll it daily, but must
+    display the provider observation date rather than pretending it is daily.
+    """
+    import re
+    result = {"current": None, "current_date": None, "history": {}, "source": None}
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; snapshot-bot/1.0)"}
+    endpoints = [
+        ("multpl-table", "https://www.multpl.com/shiller-pe/table/by-month"),
+        ("multpl-table-jina", "https://r.jina.ai/http://www.multpl.com/shiller-pe/table/by-month"),
+    ]
+    for source, url in endpoints:
+        try:
+            response = requests.get(url, timeout=30, headers=headers)
+            response.raise_for_status()
+            body = response.text
+            # HTML table rows and Jina's Markdown table rows.
+            matches = re.findall(
+                r"(?:<td[^>]*>\s*)?([A-Z][a-z]{2} \d{1,2},\s*\d{4})(?:\s*</td>)?\s*"
+                r"(?:<td[^>]*>\s*|\|\s*)([\d]+(?:\.\d+)?)(?:\s*</td>|\s*\|)",
+                body,
+            )
+            hist = {}
+            dated_values = []
+            from datetime import datetime
+            for date_str, val_str in matches:
+                try:
+                    dt = datetime.strptime(date_str.strip(), "%b %d, %Y")
+                    iso = dt.strftime("%Y-%m-%d")
+                    dated_values.append((iso, float(val_str)))
+                    # Keep the actual observation date; monthly rows are not
+                    # always published on the first day of the month.
+                    hist[iso] = float(val_str)
+                except Exception:
+                    continue
+            if not dated_values:
                 continue
-        if hist:
-            log(f"multpl.com CAPE history OK: {len(hist)} months")
+            dated_values.sort(key=lambda item: item[0], reverse=True)
+            result["current_date"], result["current"] = dated_values[0]
             result["history"] = hist
-        else:
-            log("WARN multpl.com CAPE: could not parse history table (site may have changed HTML)")
-    except Exception as e:
-        log(f"WARN multpl.com CAPE history: {e}")
+            result["source"] = source
+            log(f"multpl.com CAPE OK ({source}): {result['current']} on {result['current_date']}, {len(hist)} observations")
+            return result
+        except Exception as e:
+            log(f"WARN multpl.com CAPE {source}: {e}")
+    log("WARN multpl.com CAPE: all current/history endpoints failed")
 
     return result
 
@@ -433,7 +435,8 @@ def expand_monthly_cape_daily(history, through_date=None):
         ((datetime.date.fromisoformat(row["date"]), row["value"]) for row in rows),
         key=lambda item: item[0],
     )
-    end = through_date or datetime.date.today()
+    end = (datetime.date.fromisoformat(through_date)
+           if isinstance(through_date, str) else through_date) or report_date()
     if end < by_date[0][0]:
         return []
     daily = []
@@ -528,6 +531,49 @@ def mark_unavailable(snap, key, error):
     asset.pop("pct", None)
     asset.pop("current", None)
     asset.pop("asOf", None)
+
+
+def mark_shiller_unavailable(snap, error):
+    """Reset Shiller completely when no valid live or cached observation exists.
+
+    A failed refresh must not leave a previous ``history``/``freshness`` or
+    source-status marker next to an unavailable KPI.  Otherwise the frontend
+    can render an old chart while the top-level status says unavailable.
+    """
+    asset = snap.setdefault("shiller", {})
+    asset.clear()
+    asset.update({
+        "status": "unavailable",
+        "error": str(error),
+        "current": None,
+        "asOf": None,
+        "history": [],
+        "dailyHistory": [],
+        "freshness": {
+            "ageDays": None,
+            "maxAgeDays": SHILLER_FRESH_DAYS,
+            "isFresh": False,
+        },
+    })
+    snap.setdefault("sourceStatus", {})["shiller"] = "failed"
+
+
+def valid_observation_date(value, today_str):
+    """Return an ISO observation date, or None; never substitute today.
+
+    Provider values without a real observation date are not safe to expose as
+    current data.  Future-dated values are rejected for the same reason.
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.date.fromisoformat(value)
+        today = datetime.date.fromisoformat(today_str)
+    except (TypeError, ValueError):
+        return None
+    if parsed > today:
+        return None
+    return parsed.isoformat()
 
 
 def normalize_dated_history(rows, limit=MAX_CLOSES):
@@ -699,7 +745,7 @@ def main():
 
     now_ms    = int(datetime.datetime.utcnow().replace(
                     tzinfo=datetime.timezone.utc).timestamp() * 1000)
-    today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = report_date().isoformat()
 
     # ── 1. GLOBAL_QUOTE (AV) ──────────────────────────────────────────────────
     # NOTE: ^VIX, ^TNX, DX-Y.NYB removed from AV — unreliable since May 2026
@@ -982,13 +1028,32 @@ def main():
     log("Shiller CAPE (multpl.com) ...")
     cape_data = fetch_multpl_cape()
     snap.setdefault("shiller", {})
-    if cape_data.get("current") is not None:
-        snap["shiller"]["current"] = cape_data["current"]
-        snap["shiller"]["status"] = "available"
-        snap["shiller"]["asOf"] = today_str
+    cape_as_of = valid_observation_date(cape_data.get("current_date"), today_str)
+    cape_value = cape_data.get("current")
+    # A numeric provider response without an observation date is unusable.
+    # In particular, never use today_str as a fallback date: that would make
+    # an undated/stale value appear to be today's CAPE observation.
+    cape_live_valid = (
+        isinstance(cape_value, (int, float)) and
+        cape_as_of is not None
+    )
+    if cape_live_valid:
+        snap["shiller"]["current"] = cape_value
+        snap["shiller"]["asOf"] = cape_as_of
+        cape_age = (datetime.date.fromisoformat(today_str) - datetime.date.fromisoformat(cape_as_of)).days
+        cape_fresh = max(0, cape_age) <= SHILLER_FRESH_DAYS
+        snap["shiller"]["status"] = "available" if cape_fresh else "stale"
+        snap["shiller"]["freshness"] = {
+            "ageDays": max(0, cape_age),
+            "maxAgeDays": SHILLER_FRESH_DAYS,
+            "isFresh": cape_fresh,
+        }
+        snap["shiller"]["source"] = cape_data.get("source") or "multpl.com"
+        snap["shiller"].pop("error", None)
+        snap.setdefault("sourceStatus", {})["shiller"] = "ok" if cape_fresh else "stale"
     else:
         mark_unavailable(snap, "shiller", "Shiller PE source returned no current value")
-    new_hist = cape_data.get("history", {})
+    new_hist = cape_data.get("history", {}) if cape_live_valid else {}
     if new_hist:
         existing_raw = snap["shiller"].get("history", [])
         existing = {h.get("date"): h.get("value") for h in existing_raw if isinstance(h, dict) and h.get("date")} if isinstance(existing_raw, list) else dict(existing_raw)
@@ -999,7 +1064,7 @@ def main():
         latest_date = max(history_dates)
         # If the live page is temporarily unavailable, retain the last valid
         # observation visibly as stale instead of deleting the KPI and chart.
-        if cape_data.get("current") is None:
+        if not cape_live_valid:
             latest = next((h for h in snap["shiller"]["history"] if h.get("date") == latest_date), None)
             if latest and isinstance(latest.get("value"), (int, float)):
                 snap["shiller"]["current"] = latest["value"]
@@ -1007,11 +1072,18 @@ def main():
                 snap["shiller"]["status"] = "stale"
                 snap["shiller"]["error"] = "Live Shiller PE source unavailable; showing last valid monthly observation"
                 snap["sourceStatus"]["shiller"] = "stale"
+                age = max(0, (datetime.date.fromisoformat(today_str) - datetime.date.fromisoformat(latest_date)).days)
+                snap["shiller"]["freshness"] = {
+                    "ageDays": age,
+                    "maxAgeDays": SHILLER_FRESH_DAYS,
+                    "isFresh": age <= SHILLER_FRESH_DAYS,
+                }
         snap["shiller"]["dailyHistory"] = expand_monthly_cape_daily(
-            {h["date"]: h["value"] for h in snap["shiller"].get("history", [])}
+            {h["date"]: h["value"] for h in snap["shiller"].get("history", [])},
+            through_date=today_str,
         )
     else:
-        mark_unavailable(snap, "shiller", "Shiller PE history is stale or unavailable")
+        mark_shiller_unavailable(snap, "Shiller PE has no valid dated observation or cache")
 
     # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────
     log("CNN Fear & Greed ...")
@@ -1031,7 +1103,7 @@ def main():
     # Market breadth is intentionally fail-closed.  A stale breadth number is
     # worse than N/A because it changes the allocation score.
     breadth = snap.get("breadth", {})
-    if not breadth.get("history") or breadth.get("asOf", "") < (datetime.date.today() - datetime.timedelta(days=7)).isoformat():
+    if not breadth.get("history") or breadth.get("asOf", "") < (report_date() - datetime.timedelta(days=7)).isoformat():
         mark_unavailable(snap, "breadth", "breadth source is stale or unavailable")
 
     normalize_hy_oas_metadata(snap, today_str)

@@ -101,7 +101,8 @@
         }
 
         // Shiller PE — 10 years
-        if (d.shiller && d.shiller.history && d.shiller.history.length > 0) {
+        if (d.shiller && d.shiller.status !== 'unavailable' &&
+            Array.isArray(d.shiller.history) && d.shiller.history.length > 0) {
             const peHistory = d.shiller.dailyHistory || d.shiller.history;
             const pePairs = peHistory
                 .map(h => [parseLocalDate(h.date), h.value])
@@ -112,6 +113,17 @@
                 { label:'+1σ',        data: new Array(peTs.length).fill(PE_WARN1), color:'#ff5722', dash:[5,5], width:1, spanGaps:true },
                 { label:'Mean',       data: new Array(peTs.length).fill(AI_MEAN),  color:'#4fc3f7', dash:[3,3], width:1, spanGaps:true },
             ], rangeBounds()));
+        } else if (d.shiller?.status === 'unavailable') {
+            const canvas = document.getElementById('chart-pe');
+            const container = canvas?.closest('.chart-container');
+            if (container) {
+                container.querySelector('.chart-unavailable')?.remove();
+                const notice = document.createElement('div');
+                notice.className = 'chart-unavailable';
+                notice.setAttribute('role', 'status');
+                notice.textContent = 'Shiller PE 暫無可靠資料';
+                container.appendChild(notice);
+            }
         }
 
         // Copper
