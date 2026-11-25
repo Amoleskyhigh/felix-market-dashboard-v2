@@ -7,8 +7,9 @@
             const z = (d.shiller.current - AI_MEAN) / AI_SD;
             document.getElementById('v-pe').innerText = d.shiller.current.toFixed(2);
             const st = document.getElementById('s-pe');
-            st.innerText = `Z: ${z.toFixed(2)}σ`;
-            st.className = 'kpi-status ' + (z > 1.5 ? 'down' : z > 0.8 ? 'neutral' : 'up');
+            const age = d.shiller.asOf ? ` · 資料日 ${d.shiller.asOf}` : '';
+            st.innerText = `${d.shiller.status === 'stale' ? '⚠️ 過期快照' : 'Z: ' + z.toFixed(2) + 'σ'}${age}`;
+            st.className = 'kpi-status ' + (d.shiller.status === 'stale' ? 'neutral' : (z > 1.5 ? 'down' : z > 0.8 ? 'neutral' : 'up'));
         } else {
             document.getElementById('v-pe').innerText = 'N/A';
             const st = document.getElementById('s-pe');

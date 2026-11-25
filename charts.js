@@ -38,13 +38,50 @@
         return new Date(y, m - 1, d).getTime();
     }
 
-    // ─── X-axis window constants ────────────────────────────────────────────────
-    // Computed once at render time so all charts share the same "now"
-    const ONE_YEAR_MS  = 365.25 * 24 * 3600 * 1000;
-    const TEN_YEARS_MS = 10 * 365.25 * 24 * 3600 * 1000;
-    const _chartNow = Date.now();
-    const X_MIN_1Y  = _chartNow - ONE_YEAR_MS;   // default: 1 year
-    const X_MIN_10Y = _chartNow - TEN_YEARS_MS;  // Shiller PE: 10 years
+    // ─── Shared time-range controls ───────────────────────────────────────────
+    const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+    let chartRange = { mode: '1y', min: null, max: null };
+
+    function rangeBounds() {
+        if (chartRange.mode === 'custom') return chartRange;
+        if (chartRange.mode === 'all') return { min: undefined, max: undefined };
+        const years = Number.parseInt(chartRange.mode, 10) || 1;
+        return { min: Date.now() - years * YEAR_MS, max: undefined };
+    }
+
+    function setChartRange(mode) {
+        chartRange = { mode, min: null, max: null };
+        document.querySelectorAll('.chart-range-btn[data-range]').forEach(btn =>
+            btn.classList.toggle('active', btn.dataset.range === mode));
+        renderCharts();
+    }
+
+    function applyCustomChartRange() {
+        const start = document.getElementById('chart-start-date')?.value;
+        const end = document.getElementById('chart-end-date')?.value;
+        if (!start || !end || start > end) return;
+        chartRange = { mode: 'custom', min: parseLocalDate(start), max: parseLocalDate(end) + 24 * 3600 * 1000 - 1 };
+        document.querySelectorAll('.chart-range-btn[data-range]').forEach(btn => btn.classList.remove('active'));
+        renderCharts();
+    }
+
+    function zoomChart(direction) {
+        const current = chartRange.mode === 'custom' ? 1 : (Number.parseInt(chartRange.mode, 10) || 1);
+        const next = direction < 0 ? Math.min(current * 2, 20) : Math.max(current / 2, 0.25);
+        chartRange = { mode: String(next), min: null, max: null };
+        document.querySelectorAll('.chart-range-btn[data-range]').forEach(btn => btn.classList.remove('active'));
+        renderCharts();
+    }
+
+    function wireChartControls() {
+        document.querySelectorAll('.chart-range-btn[data-range]').forEach(btn => btn.addEventListener('click', () => setChartRange(btn.dataset.range)));
+        document.getElementById('chart-zoom-in')?.addEventListener('click', () => zoomChart(1));
+        document.getElementById('chart-zoom-out')?.addEventListener('click', () => zoomChart(-1));
+        document.getElementById('chart-apply-custom')?.addEventListener('click', applyCustomChartRange);
+        document.getElementById('chart-reset-range')?.addEventListener('click', () => setChartRange('1y'));
+    }
+
+    window.setChartRange = setChartRange;
 
     function renderCharts() {
         const d = gData;
@@ -60,12 +97,13 @@
             chartsDrawn.push(drawMulti('chart-spy', spyTs, [
                 { label:'SPY',   data: spyCloses, color:'#4fc3f7', width:1.5 },
                 { label:'MA200', data: ma200,     color:'#f44336', dash:[4,4], width:1 }
-            ], { xMin: X_MIN_1Y }));
+            ], rangeBounds()));
         }
 
         // Shiller PE — 10 years
         if (d.shiller && d.shiller.history && d.shiller.history.length > 0) {
-            const pePairs = d.shiller.history
+            const peHistory = d.shiller.dailyHistory || d.shiller.history;
+            const pePairs = peHistory
                 .map(h => [parseLocalDate(h.date), h.value])
                 .sort((a, b) => a[0] - b[0]);
             const [peTs, peVals] = insertNullsForGaps(pePairs.map(p => p[0]), pePairs.map(p => p[1]));
@@ -73,7 +111,7 @@
                 { label:'Shiller PE', data: peVals,                               color:'#ff9800', width:1.5 },
                 { label:'+1σ',        data: new Array(peTs.length).fill(PE_WARN1), color:'#ff5722', dash:[5,5], width:1, spanGaps:true },
                 { label:'Mean',       data: new Array(peTs.length).fill(AI_MEAN),  color:'#4fc3f7', dash:[3,3], width:1, spanGaps:true },
-            ], { xMin: X_MIN_10Y }));
+            ], rangeBounds()));
         }
 
         // Copper
@@ -84,7 +122,7 @@
             chartsDrawn.push(drawMulti('chart-copper', copperTs, [
                 { label:'Copper', data: copperCloses, color:'#cd7f32', width:1.5 },
                 { label:'MA3',    data: ma3,          color:'#ffeb3b', dash:[4,4], width:1 }
-            ], { xMin: X_MIN_1Y }));
+            ], rangeBounds()));
         }
 
         // VIX
@@ -96,7 +134,7 @@
                 { label:'35',  data: new Array(vixTs.length).fill(35),   color:'#ff5722', dash:[5,5], width:1, spanGaps:true },
                 { label:'28',  data: new Array(vixTs.length).fill(28),   color:'#ff9800', dash:[3,3], width:1, spanGaps:true },
                 { label:'20',  data: new Array(vixTs.length).fill(20),   color:'#888',    dash:[3,3], width:1, spanGaps:true },
-            ], { xMin: X_MIN_1Y }));
+            ], rangeBounds()));
         }
 
         // HY OAS
@@ -109,7 +147,7 @@
                 { label:'HY OAS', data: hyVals,                           color:'#ef5350', width:1.5 },
                 { label:'500bp',  data: new Array(hyTs.length).fill(500), color:'#ff9800', dash:[5,5], width:1, spanGaps:true },
                 { label:'300bp',  data: new Array(hyTs.length).fill(300), color:'#4caf50', dash:[3,3], width:1, spanGaps:true },
-            ], { xMin: X_MIN_1Y }));
+            ], rangeBounds()));
         }
 
         // Market Breadth (% stocks above 200MA)
@@ -122,18 +160,18 @@
                 { label:'廣度%', data: brVals,                            color:'#26c6da', width:2 },
                 { label:'65%',   data: new Array(brTs.length).fill(65),  color:'#4caf50', dash:[5,5], width:1, spanGaps:true },
                 { label:'50%',   data: new Array(brTs.length).fill(50),  color:'#ff9800', dash:[3,3], width:1, spanGaps:true },
-            ], { xMin: X_MIN_1Y, timeUnit: 'day' }));
+            ], { ...rangeBounds(), timeUnit: 'day' }));
         }
 
         if (d.qqq && d.qqq.closes && d.qqq.closes.length > 1) {
             const [qqqTsSorted, qqqClosesSorted] = sortChronologically(d.qqq.timestamps, d.qqq.closes);
             const [qqqTs, qqqCloses] = insertNullsForGaps(qqqTsSorted, qqqClosesSorted);
-            chartsDrawn.push(drawSingle('chart-qqq', qqqTs, qqqCloses, '#4fc3f7', 'QQQ', { xMin: X_MIN_1Y }));
+            chartsDrawn.push(drawSingle('chart-qqq', qqqTs, qqqCloses, '#4fc3f7', 'QQQ', rangeBounds()));
         }
         if (d.smh && d.smh.closes && d.smh.closes.length > 1) {
             const [smhTsSorted, smhClosesSorted] = sortChronologically(d.smh.timestamps, d.smh.closes);
             const [smhTs, smhCloses] = insertNullsForGaps(smhTsSorted, smhClosesSorted);
-            chartsDrawn.push(drawSingle('chart-smh', smhTs, smhCloses, '#ce93d8', 'SMH', { xMin: X_MIN_1Y }));
+            chartsDrawn.push(drawSingle('chart-smh', smhTs, smhCloses, '#ce93d8', 'SMH', rangeBounds()));
         }
 
         // DXY with MA20
@@ -144,7 +182,7 @@
             chartsDrawn.push(drawMulti('chart-dxy', dxyTs, [
                 { label:'DXY',  data: dxyCloses, color:'#81c784', width:1.5 },
                 { label:'MA20', data: ma20,      color:'#ffeb3b', dash:[4,4], width:1 }
-            ], { xMin: X_MIN_1Y }));
+            ], rangeBounds()));
         }
 
         // TNX with MA20
@@ -157,14 +195,15 @@
                 { label:'MA20',      data: ma20,                               color:'#4fc3f7', dash:[4,4], width:1 },
                 { label:'4.5%',      data: new Array(tnxTs.length).fill(4.5), color:'#f44336', dash:[5,5], width:1, spanGaps:true },
                 { label:'3.5%',      data: new Array(tnxTs.length).fill(3.5), color:'#4caf50', dash:[5,5], width:1, spanGaps:true },
-            ], { xMin: X_MIN_1Y }));
+            ], rangeBounds()));
         }
     }
 
     function drawSingle(id, timestamps, closes, color, label, opts) {
-        const xMin = opts && opts.xMin;
+        const range = opts || rangeBounds();
         const xScale = { type:'time', ticks:{maxTicksLimit:6}, grid:{color:'#1a2a3a'} };
-        if (xMin) xScale.min = xMin;
+        if (range.min !== undefined && range.min !== null) xScale.min = range.min;
+        if (range.max !== undefined && range.max !== null) xScale.max = range.max;
         return new Chart(document.getElementById(id), {
             type:'line',
             data:{ labels: timestamps.map(t=>new Date(t)), datasets:[{
@@ -177,6 +216,7 @@
     }
 
     function drawMulti(id, timestamps, datasets, opts) {
+        const range = opts || rangeBounds();
         const ds = datasets.filter(d=>d.data).map(d => ({
             label: d.label,
             data: d.data,
@@ -188,8 +228,9 @@
             spanGaps: d.spanGaps !== undefined ? d.spanGaps : false
         }));
         const xScale = { type:'time', ticks:{maxTicksLimit:6}, grid:{color:'#1a2a3a'} };
-        if (opts && opts.xMin)     xScale.min = opts.xMin;
-        if (opts && opts.timeUnit) xScale.time = { unit: opts.timeUnit };
+        if (range.min !== undefined && range.min !== null) xScale.min = range.min;
+        if (range.max !== undefined && range.max !== null) xScale.max = range.max;
+        if (range.timeUnit) xScale.time = { unit: range.timeUnit };
         return new Chart(document.getElementById(id), {
             type:'line',
             data:{ labels: timestamps.map(t=>new Date(t)), datasets: ds },
@@ -203,6 +244,8 @@
         const sc = computeScore();
         renderAlloc(sc);
     }
+
+    wireChartControls();
 
     // ─── 資料來源說明 ────────────────────────────────────────────────────────
     // 架構：每日 Actions (update-snapshot.yml) 更新快照 → push main →

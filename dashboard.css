@@ -65,6 +65,16 @@
         .main-layout { display:grid; grid-template-columns:1fr 320px; gap:14px; }
         .chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         .chart-container { position:relative; height:180px; }
+        .chart-controls { margin-bottom: 12px; }
+        .chart-controls-title { font-size: 13px; font-weight: 700; color: #b9d8ee; margin-bottom: 8px; }
+        .chart-controls-row, .chart-custom-range { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+        .chart-custom-range { margin-top: 8px; color:#9aaaba; font-size: 12px; }
+        .chart-custom-range label { display:inline-flex; align-items:center; gap:4px; }
+        .chart-custom-range input[type=date] { color:#dceaf5; background:#152536; border:1px solid #34516a; border-radius:4px; padding:4px 6px; }
+        .chart-range-btn { color:#c9e8fb; background:#162b3e; border:1px solid #31536d; border-radius:5px; padding:5px 9px; font-size:12px; cursor:pointer; }
+        .chart-range-btn:hover, .chart-range-btn:focus-visible { background:#214461; border-color:#64b5e8; }
+        .chart-range-btn.active { color:#07131d; background:#4fc3f7; border-color:#4fc3f7; font-weight:700; }
+        .chart-controls-note { color:#718596; font-size:11px; line-height:1.5; margin-top:8px; }
         .right-col { display:flex; flex-direction:column; gap:12px; }
         .threshold-section { margin-bottom: 10px; }
         .threshold-title { font-size: 12px; font-weight: bold; margin-bottom: 4px; }

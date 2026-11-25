@@ -416,6 +416,40 @@ def fetch_multpl_cape():
     return result
 
 
+def expand_monthly_cape_daily(history, through_date=None):
+    """Create a daily display series by carrying each monthly CAPE forward.
+
+    CAPE is published monthly, so this is explicitly a display convenience,
+    not a claim that a new daily CAPE observation exists.
+    """
+    rows = normalize_dated_history(
+        [{"date": f"{date}-01" if len(date) == 7 else date, "value": value}
+         for date, value in (history or {}).items()],
+        limit=5000,
+    )
+    if not rows:
+        return []
+    by_date = sorted(
+        ((datetime.date.fromisoformat(row["date"]), row["value"]) for row in rows),
+        key=lambda item: item[0],
+    )
+    end = through_date or datetime.date.today()
+    if end < by_date[0][0]:
+        return []
+    daily = []
+    idx = 0
+    value = None
+    day = by_date[0][0]
+    while day <= end:
+        while idx < len(by_date) and by_date[idx][0] <= day:
+            value = by_date[idx][1]
+            idx += 1
+        if value is not None:
+            daily.append({"date": day.isoformat(), "value": value})
+        day += datetime.timedelta(days=1)
+    return daily
+
+
 def fetch_cnn():
     """Return (score: int|None, rating: str|None, history: list) newest-first."""
     try:
@@ -961,7 +995,22 @@ def main():
         existing.update({f"{k}-01" if len(k) == 7 else k: v for k, v in new_hist.items()})
         snap["shiller"]["history"] = [{"date": d, "value": v} for d, v in sorted(existing.items(), reverse=True) if v is not None]
     history_dates = [h.get("date") for h in snap["shiller"].get("history", []) if isinstance(h, dict) and h.get("date")]
-    if not history_dates or max(history_dates) < (datetime.date.today() - datetime.timedelta(days=45)).isoformat():
+    if history_dates:
+        latest_date = max(history_dates)
+        # If the live page is temporarily unavailable, retain the last valid
+        # observation visibly as stale instead of deleting the KPI and chart.
+        if cape_data.get("current") is None:
+            latest = next((h for h in snap["shiller"]["history"] if h.get("date") == latest_date), None)
+            if latest and isinstance(latest.get("value"), (int, float)):
+                snap["shiller"]["current"] = latest["value"]
+                snap["shiller"]["asOf"] = latest_date
+                snap["shiller"]["status"] = "stale"
+                snap["shiller"]["error"] = "Live Shiller PE source unavailable; showing last valid monthly observation"
+                snap["sourceStatus"]["shiller"] = "stale"
+        snap["shiller"]["dailyHistory"] = expand_monthly_cape_daily(
+            {h["date"]: h["value"] for h in snap["shiller"].get("history", [])}
+        )
+    else:
         mark_unavailable(snap, "shiller", "Shiller PE history is stale or unavailable")
 
     # ── 4. CNN Fear & Greed ───────────────────────────────────────────────────

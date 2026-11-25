@@ -59,7 +59,9 @@
         const copperMA3 = calcMA(d.copper?.closes, 3) ?? copper;
         const tnx      = d.tnx?.currentPrice ?? null;
         const tnxMA20  = calcMA(d.tnx?.closes, 20) ?? tnx;
-        const pe       = d.shiller?.status === 'unavailable' ? null : d.shiller?.current ?? null;
+        // A stale CAPE may remain visible for transparency, but must not drive
+        // the allocation guard until a fresh observation is available.
+        const pe       = d.shiller?.status === 'available' ? d.shiller.current ?? null : null;
         const dxy      = d.dxy?.currentPrice ?? null;
         const dxyMA20  = calcMA(d.dxy?.closes, 20) ?? dxy;
 

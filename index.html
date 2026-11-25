@@ -130,6 +130,26 @@
     <!-- Charts + Sidebar -->
     <div class="main-layout">
         <div>
+            <div class="card chart-controls" aria-label="趨勢圖時間範圍控制">
+                <div class="chart-controls-title">🔎 趨勢圖時間範圍</div>
+                <div class="chart-controls-row">
+                    <button type="button" class="chart-range-btn active" data-range="1y">近 1 年</button>
+                    <button type="button" class="chart-range-btn" data-range="3y">近 3 年</button>
+                    <button type="button" class="chart-range-btn" data-range="5y">近 5 年</button>
+                    <button type="button" class="chart-range-btn" data-range="10y">近 10 年</button>
+                    <button type="button" class="chart-range-btn" data-range="all">全部</button>
+                    <button type="button" class="chart-range-btn" id="chart-zoom-out">－ 縮小</button>
+                    <button type="button" class="chart-range-btn" id="chart-zoom-in">＋ 放大</button>
+                </div>
+                <div class="chart-custom-range">
+                    <label>自訂區間 <input type="date" id="chart-start-date" aria-label="趨勢圖開始日期"></label>
+                    <span>～</span>
+                    <label><input type="date" id="chart-end-date" aria-label="趨勢圖結束日期"></label>
+                    <button type="button" class="chart-range-btn" id="chart-apply-custom">套用</button>
+                    <button type="button" class="chart-range-btn" id="chart-reset-range">重設</button>
+                </div>
+                <div class="chart-controls-note">所有趨勢圖同步套用時間範圍；Shiller PE 的每日線是月度觀測值延續顯示，並非每日重新估算。</div>
+            </div>
             <div class="chart-grid">
                 <div class="card"><h3>📈 SPY 走勢 vs MA200</h3><div class="chart-container"><canvas id="chart-spy"></canvas></div></div>
                 <div class="card"><h3>📉 Shiller PE（均值/σ）</h3><div class="chart-container"><canvas id="chart-pe"></canvas></div></div>
